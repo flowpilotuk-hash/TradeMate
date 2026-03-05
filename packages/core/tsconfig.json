@@ -6,6 +6,9 @@
     "composite": true,
     "declarationMap": true
   },
+  "references": [
+    { "path": "../shared" }
+  ],
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }
