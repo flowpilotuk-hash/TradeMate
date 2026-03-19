@@ -1,0 +1,589 @@
+{
+  "conv_1773089990396_0k6yx3": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {
+      "postcode": {
+        "value": "LS15 8ZZ",
+        "source": "ai",
+        "confidence": 0.94,
+        "updatedAt": "2026-03-09T20:59:53.993Z"
+      },
+      "jobType": {
+        "value": "FULL_FIT",
+        "source": "ai",
+        "confidence": 0.82,
+        "updatedAt": "2026-03-09T20:59:53.993Z"
+      },
+      "timeline": {
+        "value": "1_3_MONTHS",
+        "source": "ai",
+        "confidence": 0.9,
+        "updatedAt": "2026-03-09T20:59:53.993Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": true,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "TIME_SENSITIVE",
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-09T20:59:53.993Z",
+      "turnCount": 1
+    }
+  },
+  "conv_1773090507393_qbw9ne": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "AWAITING_CONTACT",
+    "fields": {
+      "postcode": {
+        "value": "LS15 8ZZ",
+        "source": "ai",
+        "confidence": 0.94,
+        "updatedAt": "2026-03-09T21:08:29.526Z"
+      },
+      "jobType": {
+        "value": "FULL_FIT",
+        "source": "ai",
+        "confidence": 0.82,
+        "updatedAt": "2026-03-09T21:08:29.526Z"
+      },
+      "timeline": {
+        "value": "1_3_MONTHS",
+        "source": "ai",
+        "confidence": 0.9,
+        "updatedAt": "2026-03-09T21:08:29.526Z"
+      },
+      "kitchenSize": {
+        "value": "MEDIUM",
+        "source": "ai",
+        "confidence": 0.9,
+        "updatedAt": "2026-03-09T21:10:54.257Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": true,
+      "photoMissing": true,
+      "contactRequested": true,
+      "handoffReady": false
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "TIME_SENSITIVE",
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-09T21:10:54.257Z",
+      "turnCount": 2
+    }
+  },
+  "conv_1773221485982_1m6ugn": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T09:31:25.981Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773221485999_mgo4jw": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T09:31:25.999Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773227782294_8u0glr": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773227761523_s3m1tb",
+      "tradesmanSlug": "leeds-kitchen-co",
+      "tradesmanBusinessName": "Leeds Kitchen Co"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T11:16:22.294Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773228768267_xk7si3": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": null,
+      "tradesmanSlug": null,
+      "tradesmanBusinessName": null
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T11:32:48.267Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773228768272_f3fmar": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": null,
+      "tradesmanSlug": null,
+      "tradesmanBusinessName": null
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T11:32:48.272Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773228772351_nqd8os": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {
+      "jobType": {
+        "value": "FULL_FIT",
+        "source": "ai",
+        "confidence": 0.82,
+        "updatedAt": "2026-03-11T11:33:12.799Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773227761523_s3m1tb",
+      "tradesmanSlug": "leeds-kitchen-co",
+      "tradesmanBusinessName": "Leeds Kitchen Co"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T11:33:12.799Z",
+      "turnCount": 1
+    }
+  },
+  "conv_1773230627797_mtav3m": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:03:47.797Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773230627800_c63asv": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:03:47.800Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773230645241_p78qeb": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:04:05.241Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773230645244_60pa4d": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:04:05.244Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773230676571_445kv6": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {
+      "jobType": {
+        "value": "WORKTOPS",
+        "source": "ai",
+        "confidence": 0.91,
+        "updatedAt": "2026-03-11T12:04:45.338Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:04:45.338Z",
+      "turnCount": 1
+    }
+  },
+  "conv_1773230709079_lklk8i": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230586429_lbq11s",
+      "tradesmanSlug": "leeds-kitchen-co",
+      "tradesmanBusinessName": "Leeds Kitchen Co"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:05:09.079Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773238900713_kr77k0": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230586429_lbq11s",
+      "tradesmanSlug": "leeds-kitchen-co",
+      "tradesmanBusinessName": "Leeds Kitchen Co"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T14:21:40.713Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773258366265_44r9dm": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773258335321_gw091s",
+      "tradesmanSlug": "trial-run",
+      "tradesmanBusinessName": "Trial Run"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T19:46:06.265Z",
+      "turnCount": 0
+    }
+  },
+  "conv_1773258366268_32e2ul": {
+    "version": 1,
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "fields": {},
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773258335321_gw091s",
+      "tradesmanSlug": "trial-run",
+      "tradesmanBusinessName": "Trial Run"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": []
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T19:46:06.268Z",
+      "turnCount": 0
+    }
+  }
+}

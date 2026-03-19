@@ -1,0 +1,159 @@
+[
+  {
+    "createdAt": "2026-03-09T19:13:00.418Z",
+    "status": "NEW",
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "TIME_SENSITIVE",
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "fields": {
+      "postcode": {
+        "value": "LS15 8ZZ",
+        "source": "ai",
+        "confidence": 0.94,
+        "updatedAt": "2026-03-09T19:12:58.251Z"
+      },
+      "email": {
+        "value": "test@example.com",
+        "source": "ai",
+        "confidence": 0.99,
+        "updatedAt": "2026-03-09T19:12:58.251Z"
+      },
+      "phone": {
+        "value": "07912 345678",
+        "source": "ai",
+        "confidence": 0.92,
+        "updatedAt": "2026-03-09T19:12:58.251Z"
+      },
+      "jobType": {
+        "value": "FULL_FIT",
+        "source": "ai",
+        "confidence": 0.82,
+        "updatedAt": "2026-03-09T19:12:58.251Z"
+      },
+      "timeline": {
+        "value": "1_3_MONTHS",
+        "source": "ai",
+        "confidence": 0.9,
+        "updatedAt": "2026-03-09T19:12:58.251Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": true,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-09T19:12:58.251Z",
+      "turnCount": 1
+    },
+    "leadId": "lead_1773083580418_zb4zq2"
+  },
+  {
+    "createdAt": "2026-03-11T11:33:15.691Z",
+    "status": "NEW",
+    "tradesmanId": "tm_1773227761523_s3m1tb",
+    "tradesmanSlug": "leeds-kitchen-co",
+    "tradesmanBusinessName": "Leeds Kitchen Co",
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "fields": {
+      "jobType": {
+        "value": "FULL_FIT",
+        "source": "ai",
+        "confidence": 0.82,
+        "updatedAt": "2026-03-11T11:33:12.799Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773227761523_s3m1tb",
+      "tradesmanSlug": "leeds-kitchen-co",
+      "tradesmanBusinessName": "Leeds Kitchen Co"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T11:33:12.799Z",
+      "turnCount": 1
+    },
+    "leadId": "lead_1773228795691_6ch2yc"
+  },
+  {
+    "createdAt": "2026-03-11T12:04:46.141Z",
+    "status": "NEW",
+    "tradesmanId": "tm_1773230624430_tqovoc",
+    "tradesmanSlug": "beta-kitchens",
+    "tradesmanBusinessName": "Beta Kitchens",
+    "tradeKind": "KITCHEN",
+    "phase": "COLLECTING",
+    "classification": {
+      "completion": "PARTIAL",
+      "actionable": false,
+      "flags": [
+        "PHOTO_MISSING",
+        "BUDGET_MEDIUM_RISK"
+      ]
+    },
+    "fields": {
+      "jobType": {
+        "value": "WORKTOPS",
+        "source": "ai",
+        "confidence": 0.91,
+        "updatedAt": "2026-03-11T12:04:45.338Z"
+      }
+    },
+    "meta": {
+      "askedCounts": {},
+      "timelineSpecific": false,
+      "photoMissing": true,
+      "contactRequested": false,
+      "handoffReady": false,
+      "tradesmanId": "tm_1773230624430_tqovoc",
+      "tradesmanSlug": "beta-kitchens",
+      "tradesmanBusinessName": "Beta Kitchens"
+    },
+    "budget": {
+      "disclosure": "NOT_DISCLOSED",
+      "signal": "UNCLEAR",
+      "risk": "MEDIUM",
+      "indicators": {}
+    },
+    "audit": {
+      "lastUserMessageAt": "2026-03-11T12:04:45.338Z",
+      "turnCount": 1
+    },
+    "leadId": "lead_1773230686141_s70lh8"
+  }
+]

@@ -1,0 +1,68 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tradesman {
+  id                        String         @id @default(cuid())
+  tradesmanId               String         @unique
+  businessName              String
+  slug                      String         @unique
+  email                     String         @unique
+  passwordHash              String
+  createdAt                 DateTime       @default(now())
+
+  subscriptionStatus        String         @default("INACTIVE")
+  stripeCustomerId          String?
+  stripeSubscriptionId      String?
+  stripeCheckoutSessionId   String?
+  plan                      String?
+
+  conversations             Conversation[]
+  leads                     Lead[]
+}
+
+model Conversation {
+  id                 String      @id @default(cuid())
+  conversationId     String      @unique
+  version            Int
+  tradeKind          String
+  phase              String
+  fieldsJson         Json
+  metaJson           Json
+  budgetJson         Json
+  classificationJson Json
+  auditJson          Json
+  messagesJson       Json
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  tradesmanId        String?
+  tradesman          Tradesman?  @relation(fields: [tradesmanId], references: [id], onDelete: SetNull)
+}
+
+model Lead {
+  id                       String      @id @default(cuid())
+  leadId                   String      @unique
+  createdAt                DateTime    @default(now())
+  status                   String
+  tradeKind                String
+  phase                    String
+  classificationJson       Json
+  fieldsJson               Json
+  metaJson                 Json
+  budgetJson               Json
+  auditJson                Json
+  conversationMessagesJson Json
+  approvedAt               DateTime?
+  rejectedAt               DateTime?
+  quotedAt                 DateTime?
+  quote                    String?
+
+  tradesmanId              String?
+  tradesman                Tradesman?  @relation(fields: [tradesmanId], references: [id], onDelete: SetNull)
+}
