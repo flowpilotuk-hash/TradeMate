@@ -61,6 +61,8 @@ export default function TradesmanChatPage() {
       return;
     }
 
+    const currentSlug = safeSlug;
+
     async function initializeChat() {
       setStarting(true);
       setError(null);
@@ -72,7 +74,7 @@ export default function TradesmanChatPage() {
 
       try {
         const tradesmanResponse = await fetch(
-          `${API_BASE}/tradesman/${encodeURIComponent(safeSlug)}`
+          `${API_BASE}/tradesman/${encodeURIComponent(currentSlug)}`
         );
 
         if (!tradesmanResponse.ok) {
@@ -87,12 +89,15 @@ export default function TradesmanChatPage() {
         setTradesman(tradesmanData);
 
         const conversationResponse = await fetch(
-          `${API_BASE}/conversation/start?tradesmanSlug=${encodeURIComponent(safeSlug)}`
+          `${API_BASE}/conversation/start?tradesmanSlug=${encodeURIComponent(currentSlug)}`
         );
 
         if (!conversationResponse.ok) {
           const problem = await conversationResponse.json().catch(() => null);
-          throw new Error(problem?.error || `Failed to start conversation: ${conversationResponse.status}`);
+          throw new Error(
+            problem?.error ||
+              `Failed to start conversation: ${conversationResponse.status}`
+          );
         }
 
         const conversationData =
@@ -107,7 +112,8 @@ export default function TradesmanChatPage() {
         }
 
         const initialMessages =
-          Array.isArray(conversationData.messages) && conversationData.messages.length > 0
+          Array.isArray(conversationData.messages) &&
+          conversationData.messages.length > 0
             ? conversationData.messages.map((message) => ({
                 id: createMessageId(),
                 role: message.role,
@@ -139,7 +145,7 @@ export default function TradesmanChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  async function handleSend(event: FormEvent) {
+  async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmed = input.trim();
@@ -175,10 +181,14 @@ export default function TradesmanChatPage() {
         }),
       });
 
-      const data = (await response.json()) as ConversationResponse & { error?: string };
+      const data = (await response.json()) as ConversationResponse & {
+        error?: string;
+      };
 
       if (!response.ok) {
-        throw new Error(data?.error || `Failed to send message: ${response.status}`);
+        throw new Error(
+          data?.error || `Failed to send message: ${response.status}`
+        );
       }
 
       if (data.conversationId) {
@@ -189,7 +199,8 @@ export default function TradesmanChatPage() {
         setPhase(data.state.phase);
       }
 
-      const botReply = data.reply || data.question || "Thanks — I've noted that.";
+      const botReply =
+        data.reply || data.question || "Thanks — I've noted that.";
 
       setMessages((current) => [
         ...current,
@@ -272,7 +283,7 @@ export default function TradesmanChatPage() {
         paddingBottom: 40,
       }}
     >
-      <AppHeader dashboardSlug={safeSlug} />
+      <AppHeader dashboardSlug={safeSlug ?? undefined} />
 
       <div
         style={{
@@ -322,7 +333,7 @@ export default function TradesmanChatPage() {
                 maxWidth: 700,
               }}
             >
-              Tell us about your job and we’ll qualify your enquiry for{" "}
+              Tell us about your job and we&apos;ll qualify your enquiry for{" "}
               <strong>{tradesman?.businessName || "this business"}</strong>.
             </p>
           </div>
@@ -614,7 +625,14 @@ export default function TradesmanChatPage() {
               >
                 How it works
               </h2>
-              <div style={{ display: "grid", gap: 10, color: "#4b5563", fontSize: 14 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  color: "#4b5563",
+                  fontSize: 14,
+                }}
+              >
                 <Step text="Tell us about the job." />
                 <Step text="We qualify the enquiry." />
                 <Step text="Submit it to the tradesman." />
@@ -642,7 +660,8 @@ export default function TradesmanChatPage() {
                 {tradesman?.businessName || "Loading..."}
               </div>
               <div style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.6 }}>
-                Your enquiry goes directly into this business&apos;s TradeMate dashboard.
+                Your enquiry goes directly into this business&apos;s TradeMate
+                dashboard.
               </div>
             </div>
           </aside>

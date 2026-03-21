@@ -1,0 +1,11 @@
+{
+  "name": "trademate",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "build": "pnpm --filter web build",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev"
+  }
+}
