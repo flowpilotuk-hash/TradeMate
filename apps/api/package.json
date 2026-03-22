@@ -10,7 +10,6 @@
     "dev": "tsx watch src/server.js",
     "build": "npx prisma generate --schema=./prisma/schema.prisma",
     "start": "npx prisma generate --schema=./prisma/schema.prisma && tsx src/server.js",
-    "postinstall": "npx prisma generate --schema=./prisma/schema.prisma",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate": "npx prisma migrate dev --schema=./prisma/schema.prisma"
