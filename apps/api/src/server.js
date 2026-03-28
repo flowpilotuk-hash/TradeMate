@@ -56,8 +56,16 @@ const DEFAULT_APP_BASE_URL =
 
 const DEFAULT_ALLOWED_ORIGINS =
   process.env.NODE_ENV === "production"
-    ? ["https://flowpilotgroup.com", "https://www.flowpilotgroup.com"]
+    ? [
+        "https://flowpilotgroup.com",
+        "https://www.flowpilotgroup.com",
+        "https://flowpilotgroup.vercel.app",
+      ]
     : ["http://localhost:3000"];
+
+function normalizeOrigin(origin) {
+  return String(origin || "").trim().replace(/\/+$/, "");
+}
 
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS ||
@@ -65,8 +73,12 @@ const ALLOWED_ORIGINS = (
   DEFAULT_ALLOWED_ORIGINS.join(",")
 )
   .split(",")
-  .map((value) => value.trim())
+  .map((value) => normalizeOrigin(value))
   .filter(Boolean);
+
+const APP_BASE_URL = String(process.env.APP_BASE_URL || DEFAULT_APP_BASE_URL)
+  .trim()
+  .replace(/\/+$/, "");
 
 function logInfo(event, data = {}) {
   console.log(
@@ -91,26 +103,21 @@ function logError(event, error, data = {}) {
   );
 }
 
-function normalizeBaseUrl(value, fallback) {
-  const candidate = String(value || fallback).trim().replace(/\/+$/, "");
-  return candidate;
-}
-
-const APP_BASE_URL = normalizeBaseUrl(process.env.APP_BASE_URL, DEFAULT_APP_BASE_URL);
-
 function isAllowedOrigin(origin) {
-  if (!origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) {
     return false;
   }
-  return ALLOWED_ORIGINS.includes(origin);
+
+  return ALLOWED_ORIGINS.some((allowed) => allowed === normalized);
 }
 
 function getAllowedOrigin(req) {
-  const requestOrigin = req.headers.origin;
+  const requestOrigin = normalizeOrigin(req.headers.origin);
   if (requestOrigin && isAllowedOrigin(requestOrigin)) {
     return requestOrigin;
   }
-  return ALLOWED_ORIGINS[0] || DEFAULT_ALLOWED_ORIGINS[0];
+  return ALLOWED_ORIGINS[0] || normalizeOrigin(DEFAULT_ALLOWED_ORIGINS[0]);
 }
 
 function writeCorsHeaders(res, origin) {
@@ -137,18 +144,32 @@ function sendEmpty(res, statusCode, origin) {
 }
 
 function rejectDisallowedOrigin(req, res) {
-  const requestOrigin = req.headers.origin;
+  const requestOrigin = normalizeOrigin(req.headers.origin);
 
   if (!requestOrigin) {
     return false;
   }
 
   if (!isAllowedOrigin(requestOrigin)) {
+    logError(
+      "cors.origin_blocked",
+      new Error("Origin not allowed"),
+      {
+        requestOrigin,
+        allowedOrigins: ALLOWED_ORIGINS,
+        path: req.url || null,
+        method: req.method || null,
+      }
+    );
+
     sendJson(
       res,
       403,
-      { error: "Origin not allowed" },
-      ALLOWED_ORIGINS[0] || DEFAULT_ALLOWED_ORIGINS[0]
+      {
+        error: "Origin not allowed",
+        origin: requestOrigin,
+      },
+      ALLOWED_ORIGINS[0] || normalizeOrigin(DEFAULT_ALLOWED_ORIGINS[0])
     );
     return true;
   }
@@ -775,15 +796,24 @@ const server = createServer(async (req, res) => {
   logInfo("request", {
     method: req.method,
     path: requestUrl.pathname,
-    origin: req.headers.origin || null,
     host: req.headers.host || null,
+    origin: req.headers.origin || null,
   });
 
   try {
     await seedDefaultTradesman();
 
     if (req.method === "GET" && requestUrl.pathname === "/health") {
-      sendJson(res, 200, { status: "ok" }, allowedOrigin);
+      sendJson(
+        res,
+        200,
+        {
+          status: "ok",
+          allowedOrigins: ALLOWED_ORIGINS,
+          appBaseUrl: APP_BASE_URL,
+        },
+        allowedOrigin
+      );
       return;
     }
 
@@ -862,7 +892,7 @@ const server = createServer(async (req, res) => {
       }
 
       const tradesman = await createTradesman({
-        businessName: body.businessName,
+        businessName: String(body.businessName || "").trim(),
         email: String(body.email || "").trim().toLowerCase(),
         slug: body.slug,
         passwordHash: hashPassword(String(body.password)),
@@ -914,7 +944,12 @@ const server = createServer(async (req, res) => {
         logError("billing.checkout.failed", error, {
           tradesmanId: tradesman.tradesmanId,
         });
-        sendJson(res, 500, { error: error.message || "Stripe checkout failed" }, allowedOrigin);
+        sendJson(
+          res,
+          500,
+          { error: error.message || "Stripe checkout failed" },
+          allowedOrigin
+        );
         return;
       }
     }
@@ -1103,13 +1138,17 @@ const server = createServer(async (req, res) => {
           try {
             await sendNewLeadNotification({ lead, tradesman });
           } catch (notificationError) {
-            logError("lead.new_notification.failed", notificationError, { leadId: lead.leadId });
+            logError("lead.new_notification.failed", notificationError, {
+              leadId: lead.leadId,
+            });
           }
 
           try {
             await sendCustomerEnquiryConfirmation({ lead, tradesman });
           } catch (notificationError) {
-            logError("lead.customer_confirmation.failed", notificationError, { leadId: lead.leadId });
+            logError("lead.customer_confirmation.failed", notificationError, {
+              leadId: lead.leadId,
+            });
           }
         }
       }
@@ -1123,14 +1162,18 @@ const server = createServer(async (req, res) => {
       if (!tradesman) return;
       if (!ensureSubscriptionActive(res, req, tradesman)) return;
 
-      const statusFilter = String(requestUrl.searchParams.get("status") || "").trim().toUpperCase();
+      const statusFilter = String(requestUrl.searchParams.get("status") || "")
+        .trim()
+        .toUpperCase();
 
       let leads = (await listLeads()).filter(
         (lead) => lead.tradesmanId === tradesman.tradesmanId
       );
 
       if (statusFilter) {
-        leads = leads.filter((lead) => String(lead.status || "").toUpperCase() === statusFilter);
+        leads = leads.filter(
+          (lead) => String(lead.status || "").toUpperCase() === statusFilter
+        );
       }
 
       sendJson(res, 200, leads, allowedOrigin);
@@ -1269,7 +1312,7 @@ server.listen(PORT, HOST, () => {
   logInfo("server.started", {
     host: HOST,
     port: PORT,
-    allowedOrigins: ALLOWED_ORIGINS,
     appBaseUrl: APP_BASE_URL,
+    allowedOrigins: ALLOWED_ORIGINS,
   });
 });
