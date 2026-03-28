@@ -20,12 +20,26 @@ function getStripe() {
   return stripeInstance;
 }
 
+function getAppBaseUrl() {
+  return (process.env.APP_BASE_URL || "https://flowpilotgroup.com").replace(/\/+$/, "");
+}
+
 async function createCheckoutSession(tradesman) {
   const stripe = getStripe();
 
   if (!stripe) {
     throw new Error("Stripe is not configured");
   }
+
+  if (!process.env.STRIPE_PRICE_ID) {
+    throw new Error("STRIPE_PRICE_ID is not configured");
+  }
+
+  if (!tradesman || !tradesman.tradesmanId || !tradesman.email) {
+    throw new Error("Valid tradesman is required");
+  }
+
+  const appBaseUrl = getAppBaseUrl();
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -37,10 +51,15 @@ async function createCheckoutSession(tradesman) {
       },
     ],
     customer_email: tradesman.email,
-    success_url: `${process.env.APP_BASE_URL}/signup-success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.APP_BASE_URL}/signup`,
+    success_url: `${appBaseUrl}/signup-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appBaseUrl}/billing/cancelled`,
     metadata: {
       tradesmanId: tradesman.tradesmanId,
+    },
+    subscription_data: {
+      metadata: {
+        tradesmanId: tradesman.tradesmanId,
+      },
     },
   });
 
@@ -52,6 +71,14 @@ function constructWebhookEvent(rawBody, signature) {
 
   if (!stripe) {
     throw new Error("Stripe is not configured");
+  }
+
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+  }
+
+  if (!signature) {
+    throw new Error("Missing Stripe signature");
   }
 
   return stripe.webhooks.constructEvent(

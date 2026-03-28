@@ -17,8 +17,10 @@ const {
   getTradesmanById,
   getTradesmanBySlug,
   getTradesmanByEmail,
+  getTradesmanByStripeCustomerId,
   listTradesmen,
   updateTradesman,
+  updateTradesmanByStripeCustomerId,
   sanitizeTradesman,
   seedDefaultTradesman,
 } = require("./tradesman-store");
@@ -46,7 +48,25 @@ const { createCheckoutSession, constructWebhookEvent } = require("./stripe");
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:3000";
+
+const DEFAULT_APP_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? "https://flowpilotgroup.com"
+    : "http://localhost:3000";
+
+const DEFAULT_ALLOWED_ORIGINS =
+  process.env.NODE_ENV === "production"
+    ? ["https://flowpilotgroup.com", "https://www.flowpilotgroup.com"]
+    : ["http://localhost:3000"];
+
+const ALLOWED_ORIGINS = (
+  process.env.ALLOWED_ORIGINS ||
+  process.env.ALLOWED_ORIGIN ||
+  DEFAULT_ALLOWED_ORIGINS.join(",")
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 
 function logInfo(event, data = {}) {
   console.log(
@@ -71,41 +91,65 @@ function logError(event, error, data = {}) {
   );
 }
 
-function sendJson(res, statusCode, payload, origin = ALLOWED_ORIGIN) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Stripe-Signature",
-  });
-  res.end(JSON.stringify(payload));
+function normalizeBaseUrl(value, fallback) {
+  const candidate = String(value || fallback).trim().replace(/\/+$/, "");
+  return candidate;
 }
 
-function sendEmpty(res, statusCode, origin = ALLOWED_ORIGIN) {
-  res.writeHead(statusCode, {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Stripe-Signature",
-  });
-  res.end();
+const APP_BASE_URL = normalizeBaseUrl(process.env.APP_BASE_URL, DEFAULT_APP_BASE_URL);
+
+function isAllowedOrigin(origin) {
+  if (!origin) {
+    return false;
+  }
+  return ALLOWED_ORIGINS.includes(origin);
 }
 
 function getAllowedOrigin(req) {
   const requestOrigin = req.headers.origin;
-  if (!requestOrigin) {
-    return ALLOWED_ORIGIN;
+  if (requestOrigin && isAllowedOrigin(requestOrigin)) {
+    return requestOrigin;
   }
-  return requestOrigin === ALLOWED_ORIGIN ? requestOrigin : null;
+  return ALLOWED_ORIGINS[0] || DEFAULT_ALLOWED_ORIGINS[0];
+}
+
+function writeCorsHeaders(res, origin) {
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, Stripe-Signature"
+  );
+}
+
+function sendJson(res, statusCode, payload, origin) {
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  writeCorsHeaders(res, origin);
+  res.end(JSON.stringify(payload));
+}
+
+function sendEmpty(res, statusCode, origin) {
+  res.statusCode = statusCode;
+  writeCorsHeaders(res, origin);
+  res.end();
 }
 
 function rejectDisallowedOrigin(req, res) {
   const requestOrigin = req.headers.origin;
+
   if (!requestOrigin) {
     return false;
   }
 
-  if (requestOrigin !== ALLOWED_ORIGIN) {
-    sendJson(res, 403, { error: "Origin not allowed" }, ALLOWED_ORIGIN);
+  if (!isAllowedOrigin(requestOrigin)) {
+    sendJson(
+      res,
+      403,
+      { error: "Origin not allowed" },
+      ALLOWED_ORIGINS[0] || DEFAULT_ALLOWED_ORIGINS[0]
+    );
     return true;
   }
 
@@ -532,7 +576,7 @@ async function getAuthenticatedTradesman(req) {
 async function requireAuth(req, res) {
   const tradesman = await getAuthenticatedTradesman(req);
   if (!tradesman) {
-    sendJson(res, 401, { error: "Unauthorized" }, getAllowedOrigin(req) || ALLOWED_ORIGIN);
+    sendJson(res, 401, { error: "Unauthorized" }, getAllowedOrigin(req));
     return null;
   }
   return tradesman;
@@ -541,7 +585,7 @@ async function requireAuth(req, res) {
 async function ensureLeadExists(res, req, leadId) {
   const lead = await getLead(leadId);
   if (!lead) {
-    sendJson(res, 404, { error: "Lead not found" }, getAllowedOrigin(req) || ALLOWED_ORIGIN);
+    sendJson(res, 404, { error: "Lead not found" }, getAllowedOrigin(req));
     return null;
   }
   return lead;
@@ -553,7 +597,7 @@ function ensureLeadOwnership(res, req, lead, tradesman) {
   }
 
   if (lead.tradesmanId !== tradesman.tradesmanId) {
-    sendJson(res, 403, { error: "Forbidden" }, getAllowedOrigin(req) || ALLOWED_ORIGIN);
+    sendJson(res, 403, { error: "Forbidden" }, getAllowedOrigin(req));
     return false;
   }
 
@@ -576,8 +620,8 @@ function ensureSubscriptionActive(res, req, tradesman) {
     sendJson(
       res,
       402,
-      { error: "Subscription inactive", subscriptionStatus: tradesman.subscriptionStatus },
-      getAllowedOrigin(req) || ALLOWED_ORIGIN
+      { error: "Payment Required", subscriptionStatus: tradesman.subscriptionStatus },
+      getAllowedOrigin(req)
     );
     return false;
   }
@@ -585,9 +629,137 @@ function ensureSubscriptionActive(res, req, tradesman) {
   return true;
 }
 
+function isActiveStripeSubscriptionStatus(status) {
+  return status === "active" || status === "trialing";
+}
+
+async function handleStripeWebhookEvent(event) {
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const tradesmanId = session?.metadata?.tradesmanId || null;
+    const stripeCustomerId =
+      typeof session.customer === "string" ? session.customer : null;
+    const stripeSubscriptionId =
+      typeof session.subscription === "string" ? session.subscription : null;
+
+    if (tradesmanId) {
+      await updateTradesman(tradesmanId, {
+        subscriptionStatus: "ACTIVE",
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeCheckoutSessionId: session.id || null,
+        plan: "starter",
+      });
+
+      logInfo("billing.checkout.completed", {
+        tradesmanId,
+        sessionId: session.id,
+        stripeCustomerId,
+        stripeSubscriptionId,
+      });
+    }
+
+    return;
+  }
+
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    const subscription = event.data.object;
+    const tradesmanId = subscription?.metadata?.tradesmanId || null;
+    const stripeCustomerId =
+      typeof subscription.customer === "string" ? subscription.customer : null;
+    const stripeSubscriptionId = subscription?.id || null;
+    const nextStatus = isActiveStripeSubscriptionStatus(subscription?.status)
+      ? "ACTIVE"
+      : "INACTIVE";
+
+    if (tradesmanId) {
+      await updateTradesman(tradesmanId, {
+        subscriptionStatus: nextStatus,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        plan: "starter",
+      });
+
+      logInfo("billing.subscription.synced_by_tradesman", {
+        tradesmanId,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeStatus: subscription?.status || null,
+        nextStatus,
+        eventType: event.type,
+      });
+
+      return;
+    }
+
+    if (stripeCustomerId) {
+      const updated = await updateTradesmanByStripeCustomerId(stripeCustomerId, {
+        subscriptionStatus: nextStatus,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        plan: "starter",
+      });
+
+      logInfo("billing.subscription.synced_by_customer", {
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeStatus: subscription?.status || null,
+        nextStatus,
+        eventType: event.type,
+        matchedTradesman: updated?.tradesmanId || null,
+      });
+    }
+
+    return;
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object;
+    const tradesmanId = subscription?.metadata?.tradesmanId || null;
+    const stripeCustomerId =
+      typeof subscription.customer === "string" ? subscription.customer : null;
+    const stripeSubscriptionId = subscription?.id || null;
+
+    if (tradesmanId) {
+      await updateTradesman(tradesmanId, {
+        subscriptionStatus: "INACTIVE",
+        stripeCustomerId,
+        stripeSubscriptionId,
+        plan: "starter",
+      });
+
+      logInfo("billing.subscription.deleted_by_tradesman", {
+        tradesmanId,
+        stripeCustomerId,
+        stripeSubscriptionId,
+      });
+
+      return;
+    }
+
+    if (stripeCustomerId) {
+      const updated = await updateTradesmanByStripeCustomerId(stripeCustomerId, {
+        subscriptionStatus: "INACTIVE",
+        stripeCustomerId,
+        stripeSubscriptionId,
+        plan: "starter",
+      });
+
+      logInfo("billing.subscription.deleted_by_customer", {
+        stripeCustomerId,
+        stripeSubscriptionId,
+        matchedTradesman: updated?.tradesmanId || null,
+      });
+    }
+  }
+}
+
 const server = createServer(async (req, res) => {
   const requestUrl = getRequestUrl(req);
-  const allowedOrigin = getAllowedOrigin(req) || ALLOWED_ORIGIN;
+  const allowedOrigin = getAllowedOrigin(req);
 
   if (req.method === "OPTIONS") {
     if (rejectDisallowedOrigin(req, res)) return;
@@ -600,7 +772,12 @@ const server = createServer(async (req, res) => {
     if (!rateLimit(req, res)) return;
   }
 
-  logInfo("request", { method: req.method, path: requestUrl.pathname });
+  logInfo("request", {
+    method: req.method,
+    path: requestUrl.pathname,
+    origin: req.headers.origin || null,
+    host: req.headers.host || null,
+  });
 
   try {
     await seedDefaultTradesman();
@@ -616,30 +793,13 @@ const server = createServer(async (req, res) => {
 
       try {
         const event = constructWebhookEvent(rawBody, signature);
-
-        if (event.type === "checkout.session.completed") {
-          const session = event.data.object;
-          const tradesmanId = session.metadata?.tradesmanId;
-
-          if (tradesmanId) {
-            await updateTradesman(tradesmanId, {
-              subscriptionStatus: "ACTIVE",
-              stripeCustomerId: session.customer || null,
-              stripeCheckoutSessionId: session.id || null,
-              plan: "starter",
-            });
-
-            logInfo("billing.checkout.completed", {
-              tradesmanId,
-              sessionId: session.id,
-            });
-          }
-        }
-
+        await handleStripeWebhookEvent(event);
         sendEmpty(res, 200, allowedOrigin);
         return;
       } catch (error) {
-        logError("billing.webhook.failed", error);
+        logError("billing.webhook.failed", error, {
+          eventType: null,
+        });
         sendJson(res, 400, { error: "Webhook error" }, allowedOrigin);
         return;
       }
@@ -703,9 +863,15 @@ const server = createServer(async (req, res) => {
 
       const tradesman = await createTradesman({
         businessName: body.businessName,
-        email: body.email,
+        email: String(body.email || "").trim().toLowerCase(),
         slug: body.slug,
         passwordHash: hashPassword(String(body.password)),
+      });
+
+      const token = createToken({
+        tradesmanId: tradesman.tradesmanId,
+        email: tradesman.email,
+        slug: tradesman.slug,
       });
 
       logInfo("tradesman.created", {
@@ -717,8 +883,9 @@ const server = createServer(async (req, res) => {
         res,
         200,
         {
-          ...sanitizeTradesman(tradesman),
-          publicChatLink: `${process.env.APP_BASE_URL || "http://localhost:3000"}/chat/${tradesman.slug}`,
+          token,
+          tradesman: sanitizeTradesman(tradesman),
+          publicChatLink: `${APP_BASE_URL}/chat/${tradesman.slug}`,
         },
         allowedOrigin
       );
@@ -726,20 +893,8 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && requestUrl.pathname === "/billing/checkout") {
-      const body = await readJsonBody(req);
-      const tradesmanId = String(body.tradesmanId || "").trim();
-
-      if (!tradesmanId) {
-        sendJson(res, 400, { error: "tradesmanId is required" }, allowedOrigin);
-        return;
-      }
-
-      const tradesman = await getTradesmanById(tradesmanId);
-
-      if (!tradesman) {
-        sendJson(res, 404, { error: "Tradesman not found" }, allowedOrigin);
-        return;
-      }
+      const tradesman = await requireAuth(req, res);
+      if (!tradesman) return;
 
       try {
         const session = await createCheckoutSession(tradesman);
@@ -756,6 +911,9 @@ const server = createServer(async (req, res) => {
         sendJson(res, 200, { checkoutUrl: session.url }, allowedOrigin);
         return;
       } catch (error) {
+        logError("billing.checkout.failed", error, {
+          tradesmanId: tradesman.tradesmanId,
+        });
         sendJson(res, 500, { error: error.message || "Stripe checkout failed" }, allowedOrigin);
         return;
       }
@@ -1108,5 +1266,10 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  logInfo("server.started", { host: HOST, port: PORT });
+  logInfo("server.started", {
+    host: HOST,
+    port: PORT,
+    allowedOrigins: ALLOWED_ORIGINS,
+    appBaseUrl: APP_BASE_URL,
+  });
 });

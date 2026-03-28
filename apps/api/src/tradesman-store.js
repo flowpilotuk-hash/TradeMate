@@ -106,6 +106,18 @@ async function getTradesmanByEmail(email) {
   return mapTradesmanRecord(record);
 }
 
+async function getTradesmanByStripeCustomerId(stripeCustomerId) {
+  if (!stripeCustomerId) {
+    return null;
+  }
+
+  const record = await prisma.tradesman.findFirst({
+    where: { stripeCustomerId: String(stripeCustomerId) },
+  });
+
+  return mapTradesmanRecord(record);
+}
+
 async function listTradesmen() {
   const records = await prisma.tradesman.findMany({
     orderBy: { createdAt: "desc" },
@@ -127,21 +139,85 @@ async function updateTradesman(tradesmanId, updates) {
     where: { tradesmanId },
     data: {
       businessName:
-        updates.businessName !== undefined ? String(updates.businessName).trim() : existing.businessName,
+        updates.businessName !== undefined
+          ? String(updates.businessName).trim()
+          : existing.businessName,
       email:
-        updates.email !== undefined ? String(updates.email).trim().toLowerCase() : existing.email,
+        updates.email !== undefined
+          ? String(updates.email).trim().toLowerCase()
+          : existing.email,
       slug:
         updates.slug !== undefined ? slugify(updates.slug) : existing.slug,
       passwordHash:
-        updates.passwordHash !== undefined ? String(updates.passwordHash) : existing.passwordHash,
+        updates.passwordHash !== undefined
+          ? String(updates.passwordHash)
+          : existing.passwordHash,
       subscriptionStatus:
-        updates.subscriptionStatus !== undefined ? String(updates.subscriptionStatus) : existing.subscriptionStatus,
+        updates.subscriptionStatus !== undefined
+          ? String(updates.subscriptionStatus)
+          : existing.subscriptionStatus,
       stripeCustomerId:
-        updates.stripeCustomerId !== undefined ? updates.stripeCustomerId : existing.stripeCustomerId,
+        updates.stripeCustomerId !== undefined
+          ? updates.stripeCustomerId
+          : existing.stripeCustomerId,
       stripeSubscriptionId:
-        updates.stripeSubscriptionId !== undefined ? updates.stripeSubscriptionId : existing.stripeSubscriptionId,
+        updates.stripeSubscriptionId !== undefined
+          ? updates.stripeSubscriptionId
+          : existing.stripeSubscriptionId,
       stripeCheckoutSessionId:
-        updates.stripeCheckoutSessionId !== undefined ? updates.stripeCheckoutSessionId : existing.stripeCheckoutSessionId,
+        updates.stripeCheckoutSessionId !== undefined
+          ? updates.stripeCheckoutSessionId
+          : existing.stripeCheckoutSessionId,
+      plan:
+        updates.plan !== undefined ? updates.plan : existing.plan,
+    },
+  });
+
+  return mapTradesmanRecord(updated);
+}
+
+async function updateTradesmanByStripeCustomerId(stripeCustomerId, updates) {
+  const existing = await prisma.tradesman.findFirst({
+    where: { stripeCustomerId: String(stripeCustomerId) },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  const updated = await prisma.tradesman.update({
+    where: { tradesmanId: existing.tradesmanId },
+    data: {
+      businessName:
+        updates.businessName !== undefined
+          ? String(updates.businessName).trim()
+          : existing.businessName,
+      email:
+        updates.email !== undefined
+          ? String(updates.email).trim().toLowerCase()
+          : existing.email,
+      slug:
+        updates.slug !== undefined ? slugify(updates.slug) : existing.slug,
+      passwordHash:
+        updates.passwordHash !== undefined
+          ? String(updates.passwordHash)
+          : existing.passwordHash,
+      subscriptionStatus:
+        updates.subscriptionStatus !== undefined
+          ? String(updates.subscriptionStatus)
+          : existing.subscriptionStatus,
+      stripeCustomerId:
+        updates.stripeCustomerId !== undefined
+          ? updates.stripeCustomerId
+          : existing.stripeCustomerId,
+      stripeSubscriptionId:
+        updates.stripeSubscriptionId !== undefined
+          ? updates.stripeSubscriptionId
+          : existing.stripeSubscriptionId,
+      stripeCheckoutSessionId:
+        updates.stripeCheckoutSessionId !== undefined
+          ? updates.stripeCheckoutSessionId
+          : existing.stripeCheckoutSessionId,
       plan:
         updates.plan !== undefined ? updates.plan : existing.plan,
     },
@@ -177,8 +253,10 @@ module.exports = {
   getTradesmanById,
   getTradesmanBySlug,
   getTradesmanByEmail,
+  getTradesmanByStripeCustomerId,
   listTradesmen,
   updateTradesman,
+  updateTradesmanByStripeCustomerId,
   sanitizeTradesman,
   seedDefaultTradesman,
 };

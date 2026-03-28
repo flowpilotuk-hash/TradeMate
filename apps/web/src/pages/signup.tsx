@@ -3,14 +3,20 @@ import { useRouter } from "next/router";
 import AppHeader from "../components/AppHeader";
 import { API_BASE } from "../lib/config";
 
-type CreatedTradesman = {
+type Tradesman = {
   tradesmanId: string;
   businessName: string;
   slug: string;
   email: string;
   createdAt: string;
-  publicChatLink: string;
   subscriptionStatus?: string;
+};
+
+type SignupResponse = {
+  token?: string;
+  tradesman?: Tradesman;
+  publicChatLink?: string;
+  error?: string;
 };
 
 type AuthMeResponse = {
@@ -19,7 +25,34 @@ type AuthMeResponse = {
   slug: string;
   email: string;
   createdAt: string;
+  subscriptionStatus?: string;
 };
+
+type CheckoutResponse = {
+  checkoutUrl?: string;
+  error?: string;
+};
+
+async function readApiResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type") || "";
+  const rawText = await response.text();
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const compactBody = rawText.replace(/\s+/g, " ").trim().slice(0, 220);
+
+    throw new Error(
+      `API returned non-JSON response (${response.status} ${response.statusText}). URL: ${response.url}. Body preview: ${compactBody || "[empty]"}`
+    );
+  }
+
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    throw new Error(
+      `API returned invalid JSON (${response.status} ${response.statusText}). URL: ${response.url}`
+    );
+  }
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -53,7 +86,7 @@ export default function SignupPage() {
           return;
         }
 
-        const me = (await response.json()) as AuthMeResponse;
+        const me = await readApiResponse<AuthMeResponse>(response);
 
         if (me?.slug) {
           await router.replace(`/dashboard/${encodeURIComponent(me.slug)}`);
@@ -78,54 +111,56 @@ export default function SignupPage() {
     setError(null);
 
     try {
+      const normalizedBusinessName = businessName.trim();
+      const normalizedEmail = email.trim().toLowerCase();
+
       const signupResponse = await fetch(`${API_BASE}/tradesmen`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          businessName,
-          email,
+          businessName: normalizedBusinessName,
+          email: normalizedEmail,
           password,
         }),
       });
 
-      const signupData = (await signupResponse.json()) as Partial<CreatedTradesman> & {
-        error?: string;
-      };
+      const signupData = await readApiResponse<SignupResponse>(signupResponse);
 
       if (!signupResponse.ok) {
-        throw new Error(signupData?.error || `Request failed: ${signupResponse.status}`);
+        throw new Error(signupData?.error || `Signup failed: ${signupResponse.status}`);
       }
 
-      if (!signupData.tradesmanId) {
-        throw new Error("Tradesman account was created without an ID.");
+      if (!signupData?.tradesman?.tradesmanId) {
+        throw new Error("Tradesman account was created without a valid tradesman record.");
       }
+
+      if (!signupData?.token) {
+        throw new Error("Signup succeeded but token was not returned.");
+      }
+
+      localStorage.setItem("trademate_token", signupData.token);
 
       const checkoutResponse = await fetch(`${API_BASE}/billing/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${signupData.token}`,
         },
-        body: JSON.stringify({
-          tradesmanId: signupData.tradesmanId,
-        }),
       });
 
-      const checkoutData = (await checkoutResponse.json()) as {
-        checkoutUrl?: string;
-        error?: string;
-      };
+      const checkoutData = await readApiResponse<CheckoutResponse>(checkoutResponse);
 
       if (!checkoutResponse.ok) {
         throw new Error(checkoutData?.error || `Checkout failed: ${checkoutResponse.status}`);
       }
 
-      if (!checkoutData.checkoutUrl) {
+      if (!checkoutData?.checkoutUrl) {
         throw new Error("Stripe checkout URL was not returned.");
       }
 
-      window.location.href = checkoutData.checkoutUrl;
+      window.location.assign(checkoutData.checkoutUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -205,6 +240,8 @@ export default function SignupPage() {
                     background: "#fef2f2",
                     color: "#991b1b",
                     border: "1px solid #fecaca",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
                   }}
                 >
                   {error}
@@ -290,6 +327,7 @@ export default function SignupPage() {
                     fontWeight: 700,
                     cursor: "pointer",
                     width: "fit-content",
+                    opacity: loading ? 0.7 : 1,
                   }}
                 >
                   {loading ? "Continuing to checkout..." : "Create account and continue"}
