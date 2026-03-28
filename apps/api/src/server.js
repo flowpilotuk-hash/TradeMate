@@ -67,6 +67,10 @@ function normalizeOrigin(origin) {
   return String(origin || "").trim().replace(/\/+$/, "");
 }
 
+function normalizeBaseUrl(url, fallback) {
+  return String(url || fallback).trim().replace(/\/+$/, "");
+}
+
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS ||
   process.env.ALLOWED_ORIGIN ||
@@ -76,9 +80,10 @@ const ALLOWED_ORIGINS = (
   .map((value) => normalizeOrigin(value))
   .filter(Boolean);
 
-const APP_BASE_URL = String(process.env.APP_BASE_URL || DEFAULT_APP_BASE_URL)
-  .trim()
-  .replace(/\/+$/, "");
+const APP_BASE_URL = normalizeBaseUrl(
+  process.env.APP_BASE_URL,
+  DEFAULT_APP_BASE_URL
+);
 
 function logInfo(event, data = {}) {
   console.log(
@@ -105,18 +110,29 @@ function logError(event, error, data = {}) {
 
 function isAllowedOrigin(origin) {
   const normalized = normalizeOrigin(origin);
+
   if (!normalized) {
-    return false;
+    return true;
   }
 
-  return ALLOWED_ORIGINS.some((allowed) => allowed === normalized);
+  if (normalized.endsWith(".vercel.app")) {
+    return true;
+  }
+
+  return ALLOWED_ORIGINS.includes(normalized);
 }
 
 function getAllowedOrigin(req) {
   const requestOrigin = normalizeOrigin(req.headers.origin);
-  if (requestOrigin && isAllowedOrigin(requestOrigin)) {
+
+  if (!requestOrigin) {
+    return "*";
+  }
+
+  if (isAllowedOrigin(requestOrigin)) {
     return requestOrigin;
   }
+
   return ALLOWED_ORIGINS[0] || normalizeOrigin(DEFAULT_ALLOWED_ORIGINS[0]);
 }
 
@@ -128,6 +144,7 @@ function writeCorsHeaders(res, origin) {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Stripe-Signature"
   );
+  res.setHeader("Access-Control-Allow-Credentials", "true");
 }
 
 function sendJson(res, statusCode, payload, origin) {
@@ -783,7 +800,6 @@ const server = createServer(async (req, res) => {
   const allowedOrigin = getAllowedOrigin(req);
 
   if (req.method === "OPTIONS") {
-    if (rejectDisallowedOrigin(req, res)) return;
     sendEmpty(res, 204, allowedOrigin);
     return;
   }
@@ -809,8 +825,8 @@ const server = createServer(async (req, res) => {
         200,
         {
           status: "ok",
-          allowedOrigins: ALLOWED_ORIGINS,
           appBaseUrl: APP_BASE_URL,
+          allowedOrigins: ALLOWED_ORIGINS,
         },
         allowedOrigin
       );
