@@ -7,7 +7,7 @@ const DEFAULT_APP_BASE =
 
 const appBaseFromEnv = process.env.NEXT_PUBLIC_APP_BASE_URL?.trim();
 
-export const API_BASE = "/api";
+export const API_BASE = "/backend";
 
 export const APP_BASE = trimTrailingSlash(
   appBaseFromEnv && /^https?:\/\//i.test(appBaseFromEnv)
