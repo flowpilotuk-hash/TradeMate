@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
-const API_PROXY_TARGET = (
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.flowpilotgroup.com"
-).replace(/\/+$/, "");
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const API_PROXY_TARGET = isProduction
+  ? "https://api.flowpilotgroup.com"
+  : "http://localhost:4000";
 
 const nextConfig = {
   reactStrictMode: true,
