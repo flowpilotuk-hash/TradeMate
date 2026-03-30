@@ -54,6 +54,13 @@ async function readRawBody(req: NextApiRequest): Promise<Buffer | undefined> {
   return Buffer.concat(chunks);
 }
 
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(arrayBuffer);
+  view.set(buffer);
+  return arrayBuffer;
+}
+
 export const config = {
   api: {
     bodyParser: false,
@@ -89,7 +96,7 @@ export default async function handler(
     const upstreamResponse = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: rawBody ? new Blob([rawBody]) : undefined,
+      body: rawBody ? new Blob([bufferToArrayBuffer(rawBody)]) : undefined,
       redirect: "manual",
     });
 
