@@ -36,29 +36,33 @@ function buildTargetUrl(
   return url.toString();
 }
 
-async function readRawBody(req: NextApiRequest): Promise<Buffer | undefined> {
+async function readRawBody(req: NextApiRequest): Promise<ArrayBuffer | undefined> {
   if (METHODS_WITHOUT_BODY.has(req.method || "GET")) {
     return undefined;
   }
 
-  const chunks: Buffer[] = [];
+  const chunks: Uint8Array[] = [];
 
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    chunks.push(
+      chunk instanceof Uint8Array ? chunk : new Uint8Array(Buffer.from(chunk))
+    );
   }
 
   if (chunks.length === 0) {
     return undefined;
   }
 
-  return Buffer.concat(chunks);
-}
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
 
-function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
-  const arrayBuffer = new ArrayBuffer(buffer.length);
-  const view = new Uint8Array(arrayBuffer);
-  view.set(buffer);
-  return arrayBuffer;
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return combined.buffer;
 }
 
 export const config = {
@@ -96,7 +100,7 @@ export default async function handler(
     const upstreamResponse = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: rawBody ? new Blob([bufferToArrayBuffer(rawBody)]) : undefined,
+      body: rawBody,
       redirect: "manual",
     });
 
