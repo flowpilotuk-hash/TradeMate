@@ -36,33 +36,22 @@ function buildTargetUrl(
   return url.toString();
 }
 
-async function readRawBody(req: NextApiRequest): Promise<Uint8Array | undefined> {
+async function readRawBody(req: NextApiRequest): Promise<Buffer | undefined> {
   if (METHODS_WITHOUT_BODY.has(req.method || "GET")) {
     return undefined;
   }
 
-  const chunks: Uint8Array[] = [];
+  const chunks: Buffer[] = [];
 
   for await (const chunk of req) {
-    chunks.push(
-      chunk instanceof Uint8Array ? chunk : new Uint8Array(Buffer.from(chunk))
-    );
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
 
   if (chunks.length === 0) {
     return undefined;
   }
 
-  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const combined = new Uint8Array(totalLength);
-
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return combined;
+  return Buffer.concat(chunks);
 }
 
 export const config = {
@@ -100,7 +89,7 @@ export default async function handler(
     const upstreamResponse = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: rawBody,
+      body: rawBody ? new Blob([rawBody]) : undefined,
       redirect: "manual",
     });
 
