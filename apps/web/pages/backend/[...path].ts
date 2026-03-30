@@ -9,7 +9,10 @@ const API_TARGET =
 
 const METHODS_WITHOUT_BODY = new Set(["GET", "HEAD"]);
 
-function buildTargetUrl(pathParts: string[] = [], query: NextApiRequest["query"]) {
+function buildTargetUrl(
+  pathParts: string[] = [],
+  query: NextApiRequest["query"]
+) {
   const path = pathParts.map(encodeURIComponent).join("/");
   const url = new URL(`${API_TARGET}/${path}`);
 
@@ -33,18 +36,33 @@ function buildTargetUrl(pathParts: string[] = [], query: NextApiRequest["query"]
   return url.toString();
 }
 
-async function readRawBody(req: NextApiRequest): Promise<Buffer | undefined> {
+async function readRawBody(req: NextApiRequest): Promise<Uint8Array | undefined> {
   if (METHODS_WITHOUT_BODY.has(req.method || "GET")) {
     return undefined;
   }
 
-  const chunks: Buffer[] = [];
+  const chunks: Uint8Array[] = [];
 
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    chunks.push(
+      chunk instanceof Uint8Array ? chunk : new Uint8Array(Buffer.from(chunk))
+    );
   }
 
-  return chunks.length > 0 ? Buffer.concat(chunks) : undefined;
+  if (chunks.length === 0) {
+    return undefined;
+  }
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const combined = new Uint8Array(totalLength);
+
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return combined;
 }
 
 export const config = {
@@ -54,7 +72,10 @@ export const config = {
   },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const pathParts = Array.isArray(req.query.path) ? req.query.path : [];
   const targetUrl = buildTargetUrl(pathParts, req.query);
 
