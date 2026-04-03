@@ -19,6 +19,7 @@ const {
   getTradesmanByEmail,
   getTradesmanByStripeCustomerId,
   listTradesmen,
+  updateTradesman,
   sanitizeTradesman,
   seedDefaultTradesman,
 } = require("./tradesman-store");
@@ -689,7 +690,6 @@ function resolveNextSubscriptionStatus(currentStatus, stripeStatus) {
     if (isTerminalInactiveStripeSubscriptionStatus(normalizedStripe)) {
       return "INACTIVE";
     }
-
     return "ACTIVE";
   }
 
@@ -861,7 +861,8 @@ async function handleSubscriptionCreatedOrUpdated(event) {
     return;
   }
 
-  const currentStatus = String(tradesman.subscriptionStatus || "").trim().toUpperCase() || "INACTIVE";
+  const currentStatus =
+    String(tradesman.subscriptionStatus || "").trim().toUpperCase() || "INACTIVE";
   const nextStatus = resolveNextSubscriptionStatus(currentStatus, stripeStatus);
 
   await updateTradesman(tradesman.tradesmanId, {
@@ -1124,7 +1125,9 @@ const server = createServer(async (req, res) => {
         await updateTradesman(tradesman.tradesmanId, {
           stripeCheckoutSessionId: session.id,
           stripeCustomerId:
-            typeof session.customer === "string" ? session.customer : tradesman.stripeCustomerId || null,
+            typeof session.customer === "string"
+              ? session.customer
+              : tradesman.stripeCustomerId || null,
         });
 
         logInfo("billing.checkout.created", {
