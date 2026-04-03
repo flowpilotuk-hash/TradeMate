@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import React, { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import AppHeader from "../components/AppHeader";
 import { API_BASE } from "../lib/config";
@@ -33,6 +33,8 @@ type CheckoutResponse = {
   error?: string;
 };
 
+const SESSION_CHECK_TIMEOUT_MS = 4000;
+
 async function readApiResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get("content-type") || "";
   const rawText = await response.text();
@@ -54,8 +56,15 @@ async function readApiResponse<T>(response: Response): Promise<T> {
   }
 }
 
+function createTimeoutSignal(timeoutMs: number): AbortSignal {
+  const controller = new AbortController();
+  window.setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
 export default function SignupPage() {
   const router = useRouter();
+  const sessionCheckCompletedRef = useRef(false);
 
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
@@ -65,11 +74,25 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     async function checkExistingSession() {
-      const token = localStorage.getItem("trademate_token");
+      const finish = () => {
+        if (!active || sessionCheckCompletedRef.current) {
+          return;
+        }
+
+        sessionCheckCompletedRef.current = true;
+        setCheckingSession(false);
+      };
+
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("trademate_token")
+          : null;
 
       if (!token) {
-        setCheckingSession(false);
+        finish();
         return;
       }
 
@@ -78,30 +101,44 @@ export default function SignupPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          signal: createTimeoutSignal(SESSION_CHECK_TIMEOUT_MS),
         });
 
         if (!response.ok) {
           localStorage.removeItem("trademate_token");
-          setCheckingSession(false);
+          finish();
           return;
         }
 
         const me = await readApiResponse<AuthMeResponse>(response);
 
         if (me?.slug) {
+          sessionCheckCompletedRef.current = true;
           await router.replace(`/dashboard/${encodeURIComponent(me.slug)}`);
           return;
         }
 
         localStorage.removeItem("trademate_token");
-        setCheckingSession(false);
+        finish();
       } catch {
         localStorage.removeItem("trademate_token");
-        setCheckingSession(false);
+        finish();
       }
     }
 
+    const hardStopTimer = window.setTimeout(() => {
+      if (!sessionCheckCompletedRef.current && active) {
+        sessionCheckCompletedRef.current = true;
+        setCheckingSession(false);
+      }
+    }, SESSION_CHECK_TIMEOUT_MS + 1000);
+
     void checkExistingSession();
+
+    return () => {
+      active = false;
+      window.clearTimeout(hardStopTimer);
+    };
   }, [router]);
 
   async function handleSubmit(event: FormEvent) {
@@ -126,10 +163,16 @@ export default function SignupPage() {
         }),
       });
 
-      const signupData = await readApiResponse<SignupResponse>(signupResponse);
+      let signupData: SignupResponse;
+
+      try {
+        signupData = await readApiResponse<SignupResponse>(signupResponse);
+      } catch {
+        throw new Error("Signup failed. Please try again.");
+      }
 
       if (!signupResponse.ok) {
-        throw new Error(signupData?.error || `Signup failed: ${signupResponse.status}`);
+        throw new Error(signupData?.error || "Signup failed. Please try again.");
       }
 
       if (!signupData?.tradesman?.tradesmanId) {
@@ -150,10 +193,16 @@ export default function SignupPage() {
         },
       });
 
-      const checkoutData = await readApiResponse<CheckoutResponse>(checkoutResponse);
+      let checkoutData: CheckoutResponse;
+
+      try {
+        checkoutData = await readApiResponse<CheckoutResponse>(checkoutResponse);
+      } catch {
+        throw new Error("Payment setup failed. Please try again.");
+      }
 
       if (!checkoutResponse.ok) {
-        throw new Error(checkoutData?.error || `Checkout failed: ${checkoutResponse.status}`);
+        throw new Error(checkoutData?.error || "Failed to start secure checkout.");
       }
 
       if (!checkoutData?.checkoutUrl) {

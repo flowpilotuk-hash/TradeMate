@@ -1,7 +1,10 @@
 import Link from "next/link";
 import AppHeader from "../components/AppHeader";
+import { APP_BASE } from "../lib/config";
 
 export default function HomePage() {
+  const demoChatUrl = `${APP_BASE}/chat/leeds-kitchen-co`;
+
   return (
     <main
       style={{
@@ -139,7 +142,7 @@ export default function HomePage() {
               wordBreak: "break-all",
             }}
           >
-            http://localhost:3000/chat/leeds-kitchen-co
+            {demoChatUrl}
           </div>
 
           <div style={{ display: "grid", gap: 12 }}>

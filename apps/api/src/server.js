@@ -44,7 +44,10 @@ const {
   validateConversationStateForSubmission,
 } = require("./validators");
 const { rateLimit } = require("./rate-limit");
-const { createCheckoutSession, constructWebhookEvent } = require("./stripe");
+const {
+  createCheckoutSession,
+  constructWebhookEvent,
+} = require("./stripe");
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
@@ -216,13 +219,13 @@ function readJsonBody(req) {
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    const chunks = [];
 
     req.on("data", (chunk) => {
-      body += chunk;
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
 
-    req.on("end", () => resolve(body));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
@@ -671,127 +674,266 @@ function isActiveStripeSubscriptionStatus(status) {
   return status === "active" || status === "trialing";
 }
 
+function isTerminalInactiveStripeSubscriptionStatus(status) {
+  return (
+    status === "canceled" ||
+    status === "unpaid" ||
+    status === "paused" ||
+    status === "incomplete_expired"
+  );
+}
+
+function resolveNextSubscriptionStatus(currentStatus, stripeStatus) {
+  const normalizedCurrent = String(currentStatus || "").trim().toUpperCase() || "INACTIVE";
+  const normalizedStripe = String(stripeStatus || "").trim().toLowerCase();
+
+  if (isActiveStripeSubscriptionStatus(normalizedStripe)) {
+    return "ACTIVE";
+  }
+
+  if (isTerminalInactiveStripeSubscriptionStatus(normalizedStripe)) {
+    return "INACTIVE";
+  }
+
+  return normalizedCurrent;
+}
+
+async function resolveTradesmanForCheckoutSession(session) {
+  const tradesmanId =
+    session?.metadata?.tradesmanId ||
+    session?.client_reference_id ||
+    null;
+
+  if (tradesmanId) {
+    const byId = await getTradesmanById(tradesmanId);
+    if (byId) {
+      return byId;
+    }
+  }
+
+  const stripeCustomerId =
+    typeof session?.customer === "string" ? session.customer : null;
+
+  if (stripeCustomerId) {
+    const byCustomer = await getTradesmanByStripeCustomerId(stripeCustomerId);
+    if (byCustomer) {
+      return byCustomer;
+    }
+  }
+
+  const email =
+    session?.customer_details?.email ||
+    session?.customer_email ||
+    session?.metadata?.tradesmanEmail ||
+    null;
+
+  if (email) {
+    const byEmail = await getTradesmanByEmail(String(email).trim().toLowerCase());
+    if (byEmail) {
+      return byEmail;
+    }
+  }
+
+  return null;
+}
+
+async function resolveTradesmanForSubscription(subscription) {
+  const tradesmanId = subscription?.metadata?.tradesmanId || null;
+
+  if (tradesmanId) {
+    const byId = await getTradesmanById(tradesmanId);
+    if (byId) {
+      return byId;
+    }
+  }
+
+  const stripeCustomerId =
+    typeof subscription?.customer === "string" ? subscription.customer : null;
+
+  if (stripeCustomerId) {
+    const byCustomer = await getTradesmanByStripeCustomerId(stripeCustomerId);
+    if (byCustomer) {
+      return byCustomer;
+    }
+  }
+
+  return null;
+}
+
+async function handleCheckoutSessionCompleted(event) {
+  const session = event.data.object;
+
+  const paymentStatus = String(session?.payment_status || "").toLowerCase();
+  const sessionStatus = String(session?.status || "").toLowerCase();
+
+  if (paymentStatus && paymentStatus !== "paid" && paymentStatus !== "no_payment_required") {
+    logInfo("billing.checkout.completed.ignored_unpaid", {
+      eventId: event.id || null,
+      sessionId: session?.id || null,
+      paymentStatus,
+      sessionStatus,
+    });
+    return;
+  }
+
+  if (sessionStatus && sessionStatus !== "complete") {
+    logInfo("billing.checkout.completed.ignored_incomplete", {
+      eventId: event.id || null,
+      sessionId: session?.id || null,
+      paymentStatus,
+      sessionStatus,
+    });
+    return;
+  }
+
+  const tradesman = await resolveTradesmanForCheckoutSession(session);
+  const stripeCustomerId =
+    typeof session?.customer === "string" ? session.customer : null;
+  const stripeSubscriptionId =
+    typeof session?.subscription === "string" ? session.subscription : null;
+
+  if (!tradesman) {
+    logError(
+      "billing.checkout.completed.no_match",
+      new Error("Unable to match tradesman for checkout session"),
+      {
+        eventId: event.id || null,
+        sessionId: session?.id || null,
+        tradesmanIdFromMetadata: session?.metadata?.tradesmanId || null,
+        clientReferenceId: session?.client_reference_id || null,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        email:
+          session?.customer_details?.email ||
+          session?.customer_email ||
+          session?.metadata?.tradesmanEmail ||
+          null,
+      }
+    );
+    return;
+  }
+
+  await updateTradesman(tradesman.tradesmanId, {
+    subscriptionStatus: "ACTIVE",
+    stripeCustomerId,
+    stripeSubscriptionId,
+    stripeCheckoutSessionId: session?.id || null,
+    plan: tradesman.plan || "starter",
+  });
+
+  logInfo("billing.checkout.completed", {
+    eventId: event.id || null,
+    tradesmanId: tradesman.tradesmanId,
+    sessionId: session?.id || null,
+    stripeCustomerId,
+    stripeSubscriptionId,
+  });
+}
+
+async function handleSubscriptionCreatedOrUpdated(event) {
+  const subscription = event.data.object;
+  const stripeCustomerId =
+    typeof subscription?.customer === "string" ? subscription.customer : null;
+  const stripeSubscriptionId = subscription?.id || null;
+  const stripeStatus = String(subscription?.status || "").toLowerCase();
+
+  const tradesman = await resolveTradesmanForSubscription(subscription);
+
+  if (!tradesman) {
+    logError(
+      "billing.subscription.no_match",
+      new Error("Unable to match tradesman for subscription"),
+      {
+        eventId: event.id || null,
+        eventType: event.type,
+        tradesmanIdFromMetadata: subscription?.metadata?.tradesmanId || null,
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeStatus,
+      }
+    );
+    return;
+  }
+
+  const currentStatus = String(tradesman.subscriptionStatus || "").trim().toUpperCase() || "INACTIVE";
+  const nextStatus = resolveNextSubscriptionStatus(currentStatus, stripeStatus);
+
+  await updateTradesman(tradesman.tradesmanId, {
+    subscriptionStatus: nextStatus,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    plan: tradesman.plan || "starter",
+  });
+
+  logInfo("billing.subscription.synced", {
+    eventId: event.id || null,
+    eventType: event.type,
+    tradesmanId: tradesman.tradesmanId,
+    stripeCustomerId,
+    stripeSubscriptionId,
+    stripeStatus,
+    currentStatus,
+    nextStatus,
+  });
+}
+
+async function handleSubscriptionDeleted(event) {
+  const subscription = event.data.object;
+  const stripeCustomerId =
+    typeof subscription?.customer === "string" ? subscription.customer : null;
+  const stripeSubscriptionId = subscription?.id || null;
+
+  const tradesman = await resolveTradesmanForSubscription(subscription);
+
+  if (!tradesman) {
+    logError(
+      "billing.subscription.deleted.no_match",
+      new Error("Unable to match tradesman for deleted subscription"),
+      {
+        eventId: event.id || null,
+        tradesmanIdFromMetadata: subscription?.metadata?.tradesmanId || null,
+        stripeCustomerId,
+        stripeSubscriptionId,
+      }
+    );
+    return;
+  }
+
+  await updateTradesman(tradesman.tradesmanId, {
+    subscriptionStatus: "INACTIVE",
+    stripeCustomerId,
+    stripeSubscriptionId,
+    plan: tradesman.plan || "starter",
+  });
+
+  logInfo("billing.subscription.deleted", {
+    eventId: event.id || null,
+    tradesmanId: tradesman.tradesmanId,
+    stripeCustomerId,
+    stripeSubscriptionId,
+  });
+}
+
 async function handleStripeWebhookEvent(event) {
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const tradesmanId = session?.metadata?.tradesmanId || null;
-    const stripeCustomerId =
-      typeof session.customer === "string" ? session.customer : null;
-    const stripeSubscriptionId =
-      typeof session.subscription === "string" ? session.subscription : null;
+  switch (event.type) {
+    case "checkout.session.completed":
+      await handleCheckoutSessionCompleted(event);
+      return;
 
-    if (tradesmanId) {
-      await updateTradesman(tradesmanId, {
-        subscriptionStatus: "ACTIVE",
-        stripeCustomerId,
-        stripeSubscriptionId,
-        stripeCheckoutSessionId: session.id || null,
-        plan: "starter",
-      });
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+      await handleSubscriptionCreatedOrUpdated(event);
+      return;
 
-      logInfo("billing.checkout.completed", {
-        tradesmanId,
-        sessionId: session.id,
-        stripeCustomerId,
-        stripeSubscriptionId,
-      });
-    }
+    case "customer.subscription.deleted":
+      await handleSubscriptionDeleted(event);
+      return;
 
-    return;
-  }
-
-  if (
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated"
-  ) {
-    const subscription = event.data.object;
-    const tradesmanId = subscription?.metadata?.tradesmanId || null;
-    const stripeCustomerId =
-      typeof subscription.customer === "string" ? subscription.customer : null;
-    const stripeSubscriptionId = subscription?.id || null;
-    const nextStatus = isActiveStripeSubscriptionStatus(subscription?.status)
-      ? "ACTIVE"
-      : "INACTIVE";
-
-    if (tradesmanId) {
-      await updateTradesman(tradesmanId, {
-        subscriptionStatus: nextStatus,
-        stripeCustomerId,
-        stripeSubscriptionId,
-        plan: "starter",
-      });
-
-      logInfo("billing.subscription.synced_by_tradesman", {
-        tradesmanId,
-        stripeCustomerId,
-        stripeSubscriptionId,
-        stripeStatus: subscription?.status || null,
-        nextStatus,
+    default:
+      logInfo("billing.webhook.ignored_event", {
+        eventId: event.id || null,
         eventType: event.type,
       });
-
-      return;
-    }
-
-    if (stripeCustomerId) {
-      const updated = await updateTradesmanByStripeCustomerId(stripeCustomerId, {
-        subscriptionStatus: nextStatus,
-        stripeCustomerId,
-        stripeSubscriptionId,
-        plan: "starter",
-      });
-
-      logInfo("billing.subscription.synced_by_customer", {
-        stripeCustomerId,
-        stripeSubscriptionId,
-        stripeStatus: subscription?.status || null,
-        nextStatus,
-        eventType: event.type,
-        matchedTradesman: updated?.tradesmanId || null,
-      });
-    }
-
-    return;
-  }
-
-  if (event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object;
-    const tradesmanId = subscription?.metadata?.tradesmanId || null;
-    const stripeCustomerId =
-      typeof subscription.customer === "string" ? subscription.customer : null;
-    const stripeSubscriptionId = subscription?.id || null;
-
-    if (tradesmanId) {
-      await updateTradesman(tradesmanId, {
-        subscriptionStatus: "INACTIVE",
-        stripeCustomerId,
-        stripeSubscriptionId,
-        plan: "starter",
-      });
-
-      logInfo("billing.subscription.deleted_by_tradesman", {
-        tradesmanId,
-        stripeCustomerId,
-        stripeSubscriptionId,
-      });
-
-      return;
-    }
-
-    if (stripeCustomerId) {
-      const updated = await updateTradesmanByStripeCustomerId(stripeCustomerId, {
-        subscriptionStatus: "INACTIVE",
-        stripeCustomerId,
-        stripeSubscriptionId,
-        plan: "starter",
-      });
-
-      logInfo("billing.subscription.deleted_by_customer", {
-        stripeCustomerId,
-        stripeSubscriptionId,
-        matchedTradesman: updated?.tradesmanId || null,
-      });
-    }
   }
 }
 
@@ -839,12 +981,19 @@ const server = createServer(async (req, res) => {
 
       try {
         const event = constructWebhookEvent(rawBody, signature);
+
+        logInfo("billing.webhook.received", {
+          eventId: event.id || null,
+          eventType: event.type,
+        });
+
         await handleStripeWebhookEvent(event);
         sendEmpty(res, 200, allowedOrigin);
         return;
       } catch (error) {
         logError("billing.webhook.failed", error, {
-          eventType: null,
+          path: requestUrl.pathname,
+          signaturePresent: Boolean(signature),
         });
         sendJson(res, 400, { error: "Webhook error" }, allowedOrigin);
         return;
@@ -907,35 +1056,56 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const tradesman = await createTradesman({
-        businessName: String(body.businessName || "").trim(),
-        email: String(body.email || "").trim().toLowerCase(),
-        slug: body.slug,
-        passwordHash: hashPassword(String(body.password)),
-      });
+      try {
+        const tradesman = await createTradesman({
+          businessName: String(body.businessName || "").trim(),
+          email: String(body.email || "").trim().toLowerCase(),
+          slug: body.slug,
+          passwordHash: hashPassword(String(body.password)),
+        });
 
-      const token = createToken({
-        tradesmanId: tradesman.tradesmanId,
-        email: tradesman.email,
-        slug: tradesman.slug,
-      });
+        const token = createToken({
+          tradesmanId: tradesman.tradesmanId,
+          email: tradesman.email,
+          slug: tradesman.slug,
+        });
 
-      logInfo("tradesman.created", {
-        tradesmanId: tradesman.tradesmanId,
-        slug: tradesman.slug,
-      });
+        logInfo("tradesman.created", {
+          tradesmanId: tradesman.tradesmanId,
+          slug: tradesman.slug,
+        });
 
-      sendJson(
-        res,
-        200,
-        {
-          token,
-          tradesman: sanitizeTradesman(tradesman),
-          publicChatLink: `${APP_BASE_URL}/chat/${tradesman.slug}`,
-        },
-        allowedOrigin
-      );
-      return;
+        sendJson(
+          res,
+          200,
+          {
+            token,
+            tradesman: sanitizeTradesman(tradesman),
+            publicChatLink: `${APP_BASE_URL}/chat/${tradesman.slug}`,
+          },
+          allowedOrigin
+        );
+        return;
+      } catch (error) {
+        const message = String(error?.message || "");
+        const code = String(error?.code || "");
+
+        if (
+          code === "23505" ||
+          message.includes("Tradesman_email_key") ||
+          message.toLowerCase().includes("duplicate key")
+        ) {
+          sendJson(
+            res,
+            409,
+            { error: "An account with this email already exists. Please log in." },
+            allowedOrigin
+          );
+          return;
+        }
+
+        throw error;
+      }
     }
 
     if (req.method === "POST" && requestUrl.pathname === "/billing/checkout") {
@@ -947,11 +1117,15 @@ const server = createServer(async (req, res) => {
 
         await updateTradesman(tradesman.tradesmanId, {
           stripeCheckoutSessionId: session.id,
+          stripeCustomerId:
+            typeof session.customer === "string" ? session.customer : tradesman.stripeCustomerId || null,
         });
 
         logInfo("billing.checkout.created", {
           tradesmanId: tradesman.tradesmanId,
           sessionId: session.id,
+          stripeCustomerId:
+            typeof session.customer === "string" ? session.customer : null,
         });
 
         sendJson(res, 200, { checkoutUrl: session.url }, allowedOrigin);

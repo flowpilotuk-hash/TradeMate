@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import React, { FormEvent, useEffect, useRef, useState } from "react";
+import { API_BASE } from "../lib/config";
 
 type ChatMessage = {
   id: string;
@@ -15,9 +16,6 @@ type ConversationResponse = {
   reply?: string | null;
   question?: string | null;
 };
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:4000";
 
 export default function ChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -35,124 +33,85 @@ export default function ChatPage() {
 
   useEffect(() => {
     async function startConversation() {
-      setStarting(true);
-      setError(null);
-
       try {
-        const response = await fetch(`${API_BASE}/conversation/start`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        const res = await fetch(`${API_BASE}/conversation/start`);
+        const data: ConversationResponse = await res.json();
 
-        if (!response.ok) {
-          throw new Error(`Failed to start conversation: ${response.status}`);
-        }
+        setConversationId(data.conversationId || null);
+        setPhase(data.state?.phase);
 
-        const data = (await response.json()) as ConversationResponse;
-
-        if (data.conversationId) {
-          setConversationId(data.conversationId);
-        }
-
-        if (data.state?.phase) {
-          setPhase(data.state.phase);
-        }
-
-        const firstBotMessage =
+        const firstMessage =
           data.reply ||
           data.question ||
           "Hi — tell us a bit about the job you need help with.";
 
         setMessages([
           {
-            id: `bot-initial-${Date.now()}`,
+            id: `bot-${Date.now()}`,
             role: "bot",
-            text: firstBotMessage,
+            text: firstMessage,
           },
         ]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError("Failed to start conversation");
       } finally {
         setStarting(false);
       }
     }
 
-    void startConversation();
+    startConversation();
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSend(e: FormEvent) {
+    e.preventDefault();
 
-    const trimmed = input.trim();
-    if (!trimmed || !conversationId || sending) {
-      return;
-    }
+    if (!input.trim() || !conversationId) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: trimmed,
-    };
+    const userText = input.trim();
 
-    setSending(true);
-    setError(null);
+    setMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, role: "user", text: userText },
+    ]);
+
     setInput("");
-    setMessages((current) => [...current, userMessage]);
+    setSending(true);
     setHasSentMessage(true);
 
     try {
-      const response = await fetch(`${API_BASE}/conversation/message`, {
+      const res = await fetch(`${API_BASE}/conversation/message`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           conversationId,
-          message: trimmed,
+          message: userText,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to send message: ${response.status}`);
-      }
+      const data: ConversationResponse = await res.json();
 
-      const data = (await response.json()) as ConversationResponse;
+      const reply =
+        data.reply || data.question || "Thanks — I've noted that.";
 
-      if (data.conversationId) {
-        setConversationId(data.conversationId);
-      }
-
-      if (data.state?.phase) {
-        setPhase(data.state.phase);
-      }
-
-      const botReply =
-        data.reply ||
-        data.question ||
-        "Thanks — I've noted that.";
-
-      setMessages((current) => [
-        ...current,
-        {
-          id: `bot-${Date.now()}`,
-          role: "bot",
-          text: botReply,
-        },
+      setMessages((prev) => [
+        ...prev,
+        { id: `bot-${Date.now()}`, role: "bot", text: reply },
       ]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setMessages((current) => [
-        ...current,
+
+      setPhase(data.state?.phase);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
         {
-          id: `system-${Date.now()}`,
+          id: `err-${Date.now()}`,
           role: "system",
-          text: "Sorry — something went wrong. Please try again.",
+          text: "Something went wrong. Try again.",
         },
       ]);
     } finally {
@@ -161,47 +120,37 @@ export default function ChatPage() {
   }
 
   async function handleCreateLead() {
-    if (!conversationId || leadCreating || leadCreated) {
-      return;
-    }
+    if (!conversationId) return;
 
     setLeadCreating(true);
-    setError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/leads/from-conversation`, {
+      await fetch(`${API_BASE}/leads/from-conversation`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          conversationId,
-        }),
+        body: JSON.stringify({ conversationId }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create lead: ${response.status}`);
-      }
-
-      await response.json();
-
       setLeadCreated(true);
-      setMessages((current) => [
-        ...current,
+
+      setMessages((prev) => [
+        ...prev,
         {
-          id: `system-lead-${Date.now()}`,
+          id: `lead-${Date.now()}`,
           role: "system",
-          text: "Thanks — your enquiry has been submitted.",
+          text: "Your enquiry has been submitted.",
         },
       ]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+    } catch {
+      setError("Failed to create lead");
     } finally {
       setLeadCreating(false);
     }
   }
 
-  const showCreateLeadButton =
+  const showCreateLead =
     hasSentMessage &&
     !leadCreated &&
     (phase === "READY_FOR_HANDOFF" ||
@@ -209,250 +158,129 @@ export default function ChatPage() {
       phase === "COLLECTING");
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        padding: 24,
-        color: "#111827",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-        }}
-      >
-        <div style={{ marginBottom: 20 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#6b7280",
-              marginBottom: 8,
-            }}
-          >
-            TradeMate
-          </div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 32,
-              lineHeight: 1.1,
-            }}
-          >
-            TradeMate Assistant
-          </h1>
-          <p
-            style={{
-              marginTop: 10,
-              color: "#6b7280",
-              fontSize: 16,
-            }}
-          >
-            Tell us about your job and we&apos;ll qualify your enquiry.
-          </p>
-        </div>
+    <main style={pageStyle}>
+      <div style={containerStyle}>
+        <h1>TradeMate Assistant</h1>
 
-        {error ? (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: 14,
-              borderRadius: 12,
-              background: "#fef2f2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
+        {error && <div style={errorStyle}>{error}</div>}
 
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 20,
-            boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px 18px",
-              borderBottom: "1px solid #f3f4f6",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ fontWeight: 700 }}>Customer Chat</div>
-            <div style={{ fontSize: 13, color: "#6b7280" }}>
-              {starting ? "Starting conversation..." : "Live qualification"}
-            </div>
-          </div>
+        <div style={chatBoxStyle}>
+          {starting ? (
+            <div style={infoBubbleStyle}>Starting conversation…</div>
+          ) : (
+            messages.map((msg) => {
+              const isUser = msg.role === "user";
 
-          <div
-            style={{
-              height: 460,
-              overflowY: "auto",
-              padding: 18,
-              background: "#fafafa",
-            }}
-          >
-            {starting ? (
-              <div style={infoBubbleStyle}>Starting conversation...</div>
-            ) : messages.length === 0 ? (
-              <div style={infoBubbleStyle}>No messages yet.</div>
-            ) : (
-              messages.map((message) => {
-                const isUser = message.role === "user";
-                const isSystem = message.role === "system";
-
-                return (
+              return (
+                <div
+                  key={msg.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: isUser ? "flex-end" : "flex-start",
+                  }}
+                >
                   <div
-                    key={message.id}
                     style={{
-                      display: "flex",
-                      justifyContent: isUser ? "flex-end" : "flex-start",
-                      marginBottom: 12,
+                      ...bubbleStyle,
+                      background: isUser ? "#111827" : "#ffffff",
+                      color: isUser ? "#fff" : "#111827",
                     }}
                   >
-                    <div
-                      style={{
-                        maxWidth: "75%",
-                        padding: "12px 14px",
-                        borderRadius: 16,
-                        lineHeight: 1.45,
-                        fontSize: 15,
-                        whiteSpace: "pre-wrap",
-                        background: isUser
-                          ? "#111827"
-                          : isSystem
-                          ? "#ecfdf5"
-                          : "#ffffff",
-                        color: isUser ? "#ffffff" : "#111827",
-                        border: isUser
-                          ? "1px solid #111827"
-                          : isSystem
-                          ? "1px solid #a7f3d0"
-                          : "1px solid #e5e7eb",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                      }}
-                    >
-                      {message.text}
-                    </div>
+                    {msg.text}
                   </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div
-            style={{
-              borderTop: "1px solid #f3f4f6",
-              padding: 16,
-              background: "#ffffff",
-            }}
-          >
-            {showCreateLeadButton ? (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  marginBottom: 14,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ color: "#374151", fontSize: 14 }}>
-                  Ready to submit this enquiry?
                 </div>
+              );
+            })
+          )}
 
-                {!leadCreated ? (
-                  <button
-                    onClick={() => void handleCreateLead()}
-                    disabled={leadCreating}
-                    style={{
-                      border: "1px solid #2563eb",
-                      background: "#2563eb",
-                      color: "#ffffff",
-                      borderRadius: 10,
-                      padding: "10px 14px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {leadCreating ? "Creating lead..." : "Create lead"}
-                  </button>
-                ) : (
-                  <Link
-                    href="/leads"
-                    style={{
-                      color: "#2563eb",
-                      fontWeight: 700,
-                      textDecoration: "none",
-                    }}
-                  >
-                    View leads inbox
-                  </Link>
-                )}
-              </div>
-            ) : null}
+          {sending && <div style={infoBubbleStyle}>Typing…</div>}
 
-            <form
-              onSubmit={handleSend}
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-              }}
-            >
-              <input
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Type your message..."
-                disabled={starting || sending || leadCreated}
-                style={{
-                  flex: 1,
-                  border: "1px solid #d1d5db",
-                  borderRadius: 12,
-                  padding: "12px 14px",
-                  fontSize: 15,
-                  outline: "none",
-                }}
-              />
-              <button
-                type="submit"
-                disabled={starting || sending || !input.trim() || leadCreated}
-                style={{
-                  border: "1px solid #111827",
-                  background: "#111827",
-                  color: "#ffffff",
-                  borderRadius: 12,
-                  padding: "12px 16px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  minWidth: 92,
-                }}
-              >
-                {sending ? "Sending..." : "Send"}
-              </button>
-            </form>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
+
+        {showCreateLead && (
+          <button onClick={handleCreateLead} style={buttonStyle}>
+            {leadCreating ? "Submitting..." : "Submit enquiry"}
+          </button>
+        )}
+
+        {leadCreated && (
+          <Link href="/dashboard" style={{ marginTop: 10 }}>
+            Go to dashboard
+          </Link>
+        )}
+
+        <form onSubmit={handleSend} style={formStyle}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            style={inputStyle}
+            placeholder="Type message..."
+          />
+          <button type="submit" style={buttonStyle}>
+            Send
+          </button>
+        </form>
       </div>
     </main>
   );
 }
+
+/* ---------- styles ---------- */
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  padding: 24,
+  background: "#f5f7fb",
+};
+
+const containerStyle: React.CSSProperties = {
+  maxWidth: 700,
+  margin: "0 auto",
+};
+
+const chatBoxStyle: React.CSSProperties = {
+  height: 400,
+  overflowY: "auto",
+  background: "#fafafa",
+  padding: 16,
+  borderRadius: 12,
+  border: "1px solid #e5e7eb",
+  marginBottom: 12,
+};
+
+const bubbleStyle: React.CSSProperties = {
+  padding: 10,
+  borderRadius: 12,
+  marginBottom: 10,
+  maxWidth: "70%",
+};
+
+const formStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 10,
+};
+
+const inputStyle: React.CSSProperties = {
+  flex: 1,
+  padding: 10,
+  borderRadius: 8,
+  border: "1px solid #ccc",
+};
+
+const buttonStyle: React.CSSProperties = {
+  padding: "10px 14px",
+  background: "#111827",
+  color: "#fff",
+  borderRadius: 8,
+  border: "none",
+  cursor: "pointer",
+};
+
+const errorStyle: React.CSSProperties = {
+  color: "red",
+  marginBottom: 10,
+};
 
 const infoBubbleStyle: React.CSSProperties = {
   padding: 14,
@@ -460,5 +288,4 @@ const infoBubbleStyle: React.CSSProperties = {
   background: "#ffffff",
   border: "1px solid #e5e7eb",
   color: "#6b7280",
-  display: "inline-block",
 };

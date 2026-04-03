@@ -5,7 +5,7 @@ function getStripe() {
     return stripeInstance;
   }
 
-  const secretKey = process.env.STRIPE_SECRET_KEY || "";
+  const secretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
 
   if (!secretKey) {
     return null;
@@ -21,7 +21,9 @@ function getStripe() {
 }
 
 function getAppBaseUrl() {
-  return (process.env.APP_BASE_URL || "https://flowpilotgroup.com").replace(/\/+$/, "");
+  return String(process.env.APP_BASE_URL || "https://flowpilotgroup.com")
+    .trim()
+    .replace(/\/+$/, "");
 }
 
 async function createCheckoutSession(tradesman) {
@@ -31,7 +33,8 @@ async function createCheckoutSession(tradesman) {
     throw new Error("Stripe is not configured");
   }
 
-  if (!process.env.STRIPE_PRICE_ID) {
+  const priceId = String(process.env.STRIPE_PRICE_ID || "").trim();
+  if (!priceId) {
     throw new Error("STRIPE_PRICE_ID is not configured");
   }
 
@@ -41,27 +44,40 @@ async function createCheckoutSession(tradesman) {
 
   const appBaseUrl = getAppBaseUrl();
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionPayload = {
     mode: "subscription",
     payment_method_types: ["card"],
     line_items: [
       {
-        price: process.env.STRIPE_PRICE_ID,
+        price: priceId,
         quantity: 1,
       },
     ],
-    customer_email: tradesman.email,
     success_url: `${appBaseUrl}/signup-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appBaseUrl}/billing/cancelled`,
     metadata: {
       tradesmanId: tradesman.tradesmanId,
+      tradesmanEmail: String(tradesman.email).trim().toLowerCase(),
     },
     subscription_data: {
       metadata: {
         tradesmanId: tradesman.tradesmanId,
+        tradesmanEmail: String(tradesman.email).trim().toLowerCase(),
       },
     },
-  });
+    client_reference_id: tradesman.tradesmanId,
+    allow_promotion_codes: true,
+  };
+
+  const existingCustomerId = String(tradesman.stripeCustomerId || "").trim();
+
+  if (existingCustomerId) {
+    sessionPayload.customer = existingCustomerId;
+  } else {
+    sessionPayload.customer_email = String(tradesman.email).trim().toLowerCase();
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionPayload);
 
   return session;
 }
@@ -73,7 +89,8 @@ function constructWebhookEvent(rawBody, signature) {
     throw new Error("Stripe is not configured");
   }
 
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  const webhookSecret = String(process.env.STRIPE_WEBHOOK_SECRET || "").trim();
+  if (!webhookSecret) {
     throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
   }
 
@@ -81,11 +98,7 @@ function constructWebhookEvent(rawBody, signature) {
     throw new Error("Missing Stripe signature");
   }
 
-  return stripe.webhooks.constructEvent(
-    rawBody,
-    signature,
-    process.env.STRIPE_WEBHOOK_SECRET
-  );
+  return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
 }
 
 module.exports = {
