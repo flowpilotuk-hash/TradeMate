@@ -19,8 +19,6 @@ const {
   getTradesmanByEmail,
   getTradesmanByStripeCustomerId,
   listTradesmen,
-  updateTradesman,
-  updateTradesmanByStripeCustomerId,
   sanitizeTradesman,
   seedDefaultTradesman,
 } = require("./tradesman-store");
@@ -686,6 +684,14 @@ function isTerminalInactiveStripeSubscriptionStatus(status) {
 function resolveNextSubscriptionStatus(currentStatus, stripeStatus) {
   const normalizedCurrent = String(currentStatus || "").trim().toUpperCase() || "INACTIVE";
   const normalizedStripe = String(stripeStatus || "").trim().toLowerCase();
+
+  if (normalizedCurrent === "ACTIVE") {
+    if (isTerminalInactiveStripeSubscriptionStatus(normalizedStripe)) {
+      return "INACTIVE";
+    }
+
+    return "ACTIVE";
+  }
 
   if (isActiveStripeSubscriptionStatus(normalizedStripe)) {
     return "ACTIVE";
