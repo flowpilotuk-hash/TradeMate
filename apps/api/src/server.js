@@ -361,9 +361,16 @@ function applyValidatedUpdates(args) {
   return recomputeDerivedState(next);
 }
 
-function extractUpdatesFromMessage(message) {
-  const text = String(message || "").trim();
+function normalizeSingleLine(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractUpdatesFromMessage(message, state) {
+  const text = normalizeSingleLine(message);
   const lower = text.toLowerCase();
+  const currentQuestion = String(getNextQuestion(state).nextField || "");
 
   const updates = [];
   let timelineSpecific = false;
@@ -414,28 +421,61 @@ function extractUpdatesFromMessage(message) {
     updates.push({ key: "kitchenSize", value: "LARGE", confidence: 0.9, source: "ai" });
   }
 
-  if (/\b(keeping the layout|same layout|no layout change)\b/.test(lower)) {
-    updates.push({ key: "layoutChange", value: "NONE", confidence: 0.88, source: "ai" });
-  } else if (/\b(minor changes|small changes|move a few things)\b/.test(lower)) {
-    updates.push({ key: "layoutChange", value: "MINOR", confidence: 0.88, source: "ai" });
-  } else if (/\b(major changes|full layout change|moving everything)\b/.test(lower)) {
-    updates.push({ key: "layoutChange", value: "MAJOR", confidence: 0.88, source: "ai" });
+  if (
+    /\b(current layout|keep(ing)? the current layout|keep(ing)? the layout|same layout|existing layout|no layout change|no major changes)\b/.test(
+      lower
+    )
+  ) {
+    updates.push({ key: "layoutChange", value: "NONE", confidence: 0.95, source: "ai" });
+  } else if (
+    /\b(minor changes|small changes|few changes|a few changes|some changes|tweak(s)?|minor layout changes)\b/.test(
+      lower
+    )
+  ) {
+    updates.push({ key: "layoutChange", value: "MINOR", confidence: 0.92, source: "ai" });
+  } else if (
+    /\b(significant changes|major changes|major layout changes|full layout change|moving everything|reconfigure|reconfiguration)\b/.test(
+      lower
+    )
+  ) {
+    updates.push({ key: "layoutChange", value: "MAJOR", confidence: 0.92, source: "ai" });
   }
 
   if (
-    /\b(i['’]?ll supply the units|i will supply the units|customer supplied|already have the units)\b/.test(lower)
+    /\b(i['’]?ll supply the units|i will supply the units|customer supplied|already have the units|i have the units|i bought the units|i'll provide the units)\b/.test(
+      lower
+    )
   ) {
-    updates.push({ key: "unitsSupply", value: "CUSTOMER_SUPPLIED", confidence: 0.88, source: "ai" });
-  } else if (/\b(you supply|supply and fit|need you to supply)\b/.test(lower)) {
-    updates.push({ key: "unitsSupply", value: "FITTER_SUPPLIED", confidence: 0.88, source: "ai" });
-  } else if (/\b(not sure|unsure)\b/.test(lower)) {
-    updates.push({ key: "unitsSupply", value: "UNSURE", confidence: 0.88, source: "ai" });
+    updates.push({
+      key: "unitsSupply",
+      value: "CUSTOMER_SUPPLIED",
+      confidence: 0.9,
+      source: "ai",
+    });
+  } else if (
+    /\b(you supply|supply and fit|need you to supply|please supply|want supply and fit)\b/.test(
+      lower
+    )
+  ) {
+    updates.push({
+      key: "unitsSupply",
+      value: "FITTER_SUPPLIED",
+      confidence: 0.9,
+      source: "ai",
+    });
+  } else if (/\b(not sure|unsure|don't know)\b/.test(lower) && currentQuestion === "unitsSupply") {
+    updates.push({
+      key: "unitsSupply",
+      value: "UNSURE",
+      confidence: 0.88,
+      source: "ai",
+    });
   }
 
   const firstNameMatch =
-    text.match(/\bmy name is\s+([A-Za-z]+)/i) ||
-    text.match(/\bi['’]?m\s+([A-Za-z]+)/i) ||
-    text.match(/\bi am\s+([A-Za-z]+)/i);
+    text.match(/\bmy name is\s+([A-Za-z'-]+)/i) ||
+    text.match(/\bi['’]?m\s+([A-Za-z'-]+)/i) ||
+    text.match(/\bi am\s+([A-Za-z'-]+)/i);
 
   if (firstNameMatch) {
     const rawName = firstNameMatch[1];
@@ -444,7 +484,18 @@ function extractUpdatesFromMessage(message) {
     updates.push({
       key: "firstName",
       value: normalizedName,
-      confidence: 0.9,
+      confidence: 0.93,
+      source: "ai",
+    });
+  } else if (
+    currentQuestion === "firstName" &&
+    /^[A-Za-z][A-Za-z' -]{1,40}$/.test(text) &&
+    !/\b(layout|changes|kitchen|budget|month|email|postcode)\b/i.test(text)
+  ) {
+    updates.push({
+      key: "firstName",
+      value: text.trim().split(/\s+/)[0],
+      confidence: 0.97,
       source: "ai",
     });
   }
@@ -458,7 +509,7 @@ function extractUpdatesFromMessage(message) {
   const explicitBudgetMatch =
     text.match(/\b(?:budget is|budget|around|about|roughly|under|up to)\s+£?\s?(\d+(?:[.,]\d+)?)\s?k\b/i) ||
     text.match(/\b£\s?(\d+(?:[.,]\d+)?)\s?k?\b/i) ||
-    text.match(/\b(\d+(?:[.,]\d+)?)\s?k\b/i);
+    (currentQuestion === "budget" ? text.match(/\b(\d+(?:[.,]\d+)?)\s?k\b/i) : null);
 
   if (budgetRangeMatch) {
     updates.push({
@@ -484,7 +535,11 @@ function extractUpdatesFromMessage(message) {
       confidence: 0.9,
       source: "ai",
     });
-  } else if (/\b(not sure on budget|unsure on budget|don't know the budget|no idea on budget)\b/.test(lower)) {
+  } else if (
+    /\b(not sure on budget|unsure on budget|don't know the budget|no idea on budget)\b/.test(
+      lower
+    )
+  ) {
     updates.push({
       key: "budget",
       value: {
@@ -510,11 +565,13 @@ function extractUpdatesFromMessage(message) {
     });
   }
 
-  if (/\b(asap|urgent|straight away)\b/.test(lower)) {
+  if (/\b(asap|urgent|straight away|as soon as possible)\b/.test(lower)) {
     updates.push({ key: "timeline", value: "ASAP", confidence: 0.96, source: "ai" });
     timelineSpecific = true;
-  } else if (/\b(next month|in a month|within 3 months)\b/.test(lower)) {
-    updates.push({ key: "timeline", value: "1_3_MONTHS", confidence: 0.9, source: "ai" });
+  } else if (
+    /\b(next month|in a month|within 3 months|in the next few months|soon)\b/.test(lower)
+  ) {
+    updates.push({ key: "timeline", value: "1_3_MONTHS", confidence: 0.91, source: "ai" });
     timelineSpecific = true;
   } else if (/\b(in 3 months|in 4 months|in 6 months)\b/.test(lower)) {
     updates.push({ key: "timeline", value: "3_6_MONTHS", confidence: 0.89, source: "ai" });
@@ -544,10 +601,12 @@ function getNextQuestion(state) {
 
   for (const field of orderedFields) {
     const value = fields[field.key];
+    const actual = value?.value;
+
     const isMissing =
-      value === undefined ||
-      value === null ||
-      (typeof value === "string" && value.trim() === "");
+      actual === undefined ||
+      actual === null ||
+      (typeof actual === "string" && actual.trim() === "");
 
     if (isMissing) {
       return {
@@ -669,10 +728,6 @@ function ensureSubscriptionActive(res, req, tradesman) {
   return true;
 }
 
-function isActiveStripeSubscriptionStatus(status) {
-  return status === "active" || status === "trialing";
-}
-
 function isTerminalInactiveStripeSubscriptionStatus(status) {
   return (
     status === "canceled" ||
@@ -680,28 +735,6 @@ function isTerminalInactiveStripeSubscriptionStatus(status) {
     status === "paused" ||
     status === "incomplete_expired"
   );
-}
-
-function resolveNextSubscriptionStatus(currentStatus, stripeStatus) {
-  const normalizedCurrent = String(currentStatus || "").trim().toUpperCase() || "INACTIVE";
-  const normalizedStripe = String(stripeStatus || "").trim().toLowerCase();
-
-  if (normalizedCurrent === "ACTIVE") {
-    if (isTerminalInactiveStripeSubscriptionStatus(normalizedStripe)) {
-      return "INACTIVE";
-    }
-    return "ACTIVE";
-  }
-
-  if (isActiveStripeSubscriptionStatus(normalizedStripe)) {
-    return "ACTIVE";
-  }
-
-  if (isTerminalInactiveStripeSubscriptionStatus(normalizedStripe)) {
-    return "INACTIVE";
-  }
-
-  return normalizedCurrent;
 }
 
 async function resolveTradesmanForCheckoutSession(session) {
@@ -864,14 +897,8 @@ async function handleSubscriptionCreatedOrUpdated(event) {
 
   const currentStatus = String(tradesman.subscriptionStatus || "").toUpperCase();
 
-  // 🔥 CRITICAL: never downgrade ACTIVE users unless explicitly canceled
   if (currentStatus === "ACTIVE") {
-    if (
-      stripeStatus === "canceled" ||
-      stripeStatus === "unpaid" ||
-      stripeStatus === "paused" ||
-      stripeStatus === "incomplete_expired"
-    ) {
+    if (isTerminalInactiveStripeSubscriptionStatus(stripeStatus)) {
       await updateTradesman(tradesman.tradesmanId, {
         subscriptionStatus: "INACTIVE",
         stripeCustomerId,
@@ -883,7 +910,6 @@ async function handleSubscriptionCreatedOrUpdated(event) {
         stripeStatus,
       });
     } else {
-      // ignore all other updates
       logInfo("billing.subscription.ignored_update", {
         tradesmanId: tradesman.tradesmanId,
         stripeStatus,
@@ -893,7 +919,6 @@ async function handleSubscriptionCreatedOrUpdated(event) {
     return;
   }
 
-  // only allow activation if not already active
   if (stripeStatus === "active" || stripeStatus === "trialing") {
     await updateTradesman(tradesman.tradesmanId, {
       subscriptionStatus: "ACTIVE",
@@ -906,7 +931,7 @@ async function handleSubscriptionCreatedOrUpdated(event) {
     });
   }
 }
-  
+
 async function handleSubscriptionDeleted(event) {
   const subscription = event.data.object;
   const stripeCustomerId =
@@ -1274,7 +1299,7 @@ const server = createServer(async (req, res) => {
       const messages = Array.isArray(conversation.messages) ? [...conversation.messages] : [];
       messages.push({ role: "user", text: String(message) });
 
-      const extracted = extractUpdatesFromMessage(String(message));
+      const extracted = extractUpdatesFromMessage(String(message), conversation.state);
 
       const nextState = applyValidatedUpdates({
         state: conversation.state,
@@ -1291,6 +1316,7 @@ const server = createServer(async (req, res) => {
       logInfo("conversation.message", {
         conversationId,
         phase: nextState.phase,
+        capturedKeys: extracted.updates.map((item) => item.key),
       });
 
       sendJson(
