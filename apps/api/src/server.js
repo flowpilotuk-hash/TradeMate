@@ -838,8 +838,10 @@ async function handleCheckoutSessionCompleted(event) {
 
 async function handleSubscriptionCreatedOrUpdated(event) {
   const subscription = event.data.object;
+
   const stripeCustomerId =
     typeof subscription?.customer === "string" ? subscription.customer : null;
+
   const stripeSubscriptionId = subscription?.id || null;
   const stripeStatus = String(subscription?.status || "").toLowerCase();
 
@@ -852,7 +854,6 @@ async function handleSubscriptionCreatedOrUpdated(event) {
       {
         eventId: event.id || null,
         eventType: event.type,
-        tradesmanIdFromMetadata: subscription?.metadata?.tradesmanId || null,
         stripeCustomerId,
         stripeSubscriptionId,
         stripeStatus,
@@ -861,29 +862,51 @@ async function handleSubscriptionCreatedOrUpdated(event) {
     return;
   }
 
-  const currentStatus =
-    String(tradesman.subscriptionStatus || "").trim().toUpperCase() || "INACTIVE";
-  const nextStatus = resolveNextSubscriptionStatus(currentStatus, stripeStatus);
+  const currentStatus = String(tradesman.subscriptionStatus || "").toUpperCase();
 
-  await updateTradesman(tradesman.tradesmanId, {
-    subscriptionStatus: nextStatus,
-    stripeCustomerId,
-    stripeSubscriptionId,
-    plan: tradesman.plan || "starter",
-  });
+  // 🔥 CRITICAL: never downgrade ACTIVE users unless explicitly canceled
+  if (currentStatus === "ACTIVE") {
+    if (
+      stripeStatus === "canceled" ||
+      stripeStatus === "unpaid" ||
+      stripeStatus === "paused" ||
+      stripeStatus === "incomplete_expired"
+    ) {
+      await updateTradesman(tradesman.tradesmanId, {
+        subscriptionStatus: "INACTIVE",
+        stripeCustomerId,
+        stripeSubscriptionId,
+      });
 
-  logInfo("billing.subscription.synced", {
-    eventId: event.id || null,
-    eventType: event.type,
-    tradesmanId: tradesman.tradesmanId,
-    stripeCustomerId,
-    stripeSubscriptionId,
-    stripeStatus,
-    currentStatus,
-    nextStatus,
-  });
+      logInfo("billing.subscription.downgraded", {
+        tradesmanId: tradesman.tradesmanId,
+        stripeStatus,
+      });
+    } else {
+      // ignore all other updates
+      logInfo("billing.subscription.ignored_update", {
+        tradesmanId: tradesman.tradesmanId,
+        stripeStatus,
+      });
+    }
+
+    return;
+  }
+
+  // only allow activation if not already active
+  if (stripeStatus === "active" || stripeStatus === "trialing") {
+    await updateTradesman(tradesman.tradesmanId, {
+      subscriptionStatus: "ACTIVE",
+      stripeCustomerId,
+      stripeSubscriptionId,
+    });
+
+    logInfo("billing.subscription.activated", {
+      tradesmanId: tradesman.tradesmanId,
+    });
+  }
 }
-
+  
 async function handleSubscriptionDeleted(event) {
   const subscription = event.data.object;
   const stripeCustomerId =

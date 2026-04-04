@@ -31,6 +31,12 @@ type ConversationResponse = {
   messages?: { role: "bot" | "user" | "system"; text: string }[];
   reply?: string | null;
   question?: string | null;
+  error?: string;
+};
+
+type LeadResponse = {
+  leadId?: string;
+  error?: string;
 };
 
 export default function TradesmanChatPage() {
@@ -45,8 +51,8 @@ export default function TradesmanChatPage() {
   const [sending, setSending] = useState(false);
   const [leadCreating, setLeadCreating] = useState(false);
   const [leadCreated, setLeadCreated] = useState(false);
+  const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasSentMessage, setHasSentMessage] = useState(false);
   const [phase, setPhase] = useState<string | undefined>(undefined);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -67,10 +73,11 @@ export default function TradesmanChatPage() {
       setStarting(true);
       setError(null);
       setLeadCreated(false);
+      setCreatedLeadId(null);
       setMessages([]);
       setConversationId(null);
       setPhase(undefined);
-      setHasSentMessage(false);
+      setInput("");
 
       try {
         const tradesmanResponse = await fetch(
@@ -92,16 +99,17 @@ export default function TradesmanChatPage() {
           `${API_BASE}/conversation/start?tradesmanSlug=${encodeURIComponent(currentSlug)}`
         );
 
-        if (!conversationResponse.ok) {
-          const problem = await conversationResponse.json().catch(() => null);
+        const conversationData =
+          (await conversationResponse.json().catch(() => null)) as
+            | ConversationResponse
+            | null;
+
+        if (!conversationResponse.ok || !conversationData) {
           throw new Error(
-            problem?.error ||
+            conversationData?.error ||
               `Failed to start conversation: ${conversationResponse.status}`
           );
         }
-
-        const conversationData =
-          (await conversationResponse.json()) as ConversationResponse;
 
         if (conversationData.conversationId) {
           setConversationId(conversationData.conversationId);
@@ -143,7 +151,7 @@ export default function TradesmanChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+  }, [messages, sending, leadCreating]);
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,7 +166,6 @@ export default function TradesmanChatPage() {
 
     const userMessage = trimmed;
     setInput("");
-    setHasSentMessage(true);
 
     setMessages((current) => [
       ...current,
@@ -181,11 +188,11 @@ export default function TradesmanChatPage() {
         }),
       });
 
-      const data = (await response.json()) as ConversationResponse & {
-        error?: string;
-      };
+      const data = (await response.json().catch(() => null)) as
+        | ConversationResponse
+        | null;
 
-      if (!response.ok) {
+      if (!response.ok || !data) {
         throw new Error(
           data?.error || `Failed to send message: ${response.status}`
         );
@@ -244,34 +251,44 @@ export default function TradesmanChatPage() {
         }),
       });
 
-      const data = await response.json().catch(() => null);
+      const data = (await response.json().catch(() => null)) as
+        | LeadResponse
+        | null;
 
-      if (!response.ok) {
+      if (!response.ok || !data) {
         throw new Error(data?.error || `Failed to create lead: ${response.status}`);
       }
 
       setLeadCreated(true);
+      setCreatedLeadId(data.leadId || null);
       setMessages((current) => [
         ...current,
         {
           id: createMessageId(),
           role: "system",
-          text: "Thanks — your enquiry has been submitted.",
+          text: data.leadId
+            ? `Thanks — your enquiry has been submitted. Reference: ${data.leadId}`
+            : "Thanks — your enquiry has been submitted.",
         },
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
+      setMessages((current) => [
+        ...current,
+        {
+          id: createMessageId(),
+          role: "system",
+          text: "We couldn't submit your enquiry yet. Please check your details and try again.",
+        },
+      ]);
     } finally {
       setLeadCreating(false);
     }
   }
 
   const showCreateLeadButton =
-    hasSentMessage &&
     !leadCreated &&
-    (phase === "READY_FOR_HANDOFF" ||
-      phase === "AWAITING_CONTACT" ||
-      phase === "COLLECTING");
+    (phase === "READY_FOR_HANDOFF" || phase === "AWAITING_CONTACT");
 
   return (
     <main
@@ -374,6 +391,7 @@ export default function TradesmanChatPage() {
               background: "#fef2f2",
               color: "#991b1b",
               border: "1px solid #fecaca",
+              whiteSpace: "pre-wrap",
             }}
           >
             {error}
@@ -497,6 +515,32 @@ export default function TradesmanChatPage() {
                     </div>
                   ) : null}
 
+                  {leadCreating ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-start",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          maxWidth: "78%",
+                          padding: "12px 14px",
+                          borderRadius: 18,
+                          lineHeight: 1.5,
+                          fontSize: 15,
+                          background: "#ffffff",
+                          color: "#6b7280",
+                          border: "1px solid #e5e7eb",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        Submitting your enquiry…
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div ref={messagesEndRef} />
                 </>
               )}
@@ -553,7 +597,7 @@ export default function TradesmanChatPage() {
                         textDecoration: "none",
                       }}
                     >
-                      Open dashboard
+                      {createdLeadId ? "Open dashboard" : "Back to dashboard"}
                     </Link>
                   )}
                 </div>
@@ -571,7 +615,7 @@ export default function TradesmanChatPage() {
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   placeholder="Type your message…"
-                  disabled={starting || sending || leadCreated}
+                  disabled={starting || sending || leadCreated || leadCreating}
                   style={{
                     flex: 1,
                     border: "1px solid #d1d5db",
@@ -584,7 +628,9 @@ export default function TradesmanChatPage() {
                 />
                 <button
                   type="submit"
-                  disabled={starting || sending || !input.trim() || leadCreated}
+                  disabled={
+                    starting || sending || !input.trim() || leadCreated || leadCreating
+                  }
                   style={{
                     border: "1px solid #111827",
                     background: "#111827",
