@@ -386,14 +386,26 @@ function extractUpdatesFromMessage(message, state) {
   }
 
   const emailMatch = text.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
-  if (emailMatch) {
+
+if (emailMatch) {
+  updates.push({
+    key: "email",
+    value: emailMatch[0].trim().toLowerCase(),
+    confidence: 0.99,
+    source: "ai",
+  });
+} else if (currentQuestion === "email") {
+  const compactEmail = text.replace(/\s+/g, "");
+
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(compactEmail)) {
     updates.push({
       key: "email",
-      value: emailMatch[0],
+      value: compactEmail.toLowerCase(),
       confidence: 0.99,
       source: "ai",
     });
   }
+}
 
   const phoneMatch = text.match(/\b(?:\+44\s?7\d{3}|07\d{3})\s?\d{3}\s?\d{3}\b/);
   if (phoneMatch) {
