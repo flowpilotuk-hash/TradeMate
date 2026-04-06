@@ -1370,8 +1370,22 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const ownership = getTradesmanFromConversationState(conversation.state);
+let ownership = getTradesmanFromConversationState(conversation.state);
 
+// 🔥 HARD GUARANTEE fallback
+if (!ownership.tradesmanId) {
+  const fallbackSlug =
+    conversation.state?.meta?.tradesmanSlug ||
+    conversation.state?.meta?.slug ||
+    null;
+
+  if (fallbackSlug) {
+    const fallbackTradesman = await getTradesmanBySlug(fallbackSlug);
+    if (fallbackTradesman) {
+      ownership.tradesmanId = fallbackTradesman.tradesmanId;
+    }
+  }
+}
       const lead = await createLead({
         createdAt: new Date().toISOString(),
         status: "NEW",
