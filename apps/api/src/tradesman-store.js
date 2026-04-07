@@ -19,6 +19,7 @@ function mapTradesmanRecord(record) {
   }
 
   return {
+    id: record.id,
     tradesmanId: record.tradesmanId,
     businessName: record.businessName,
     slug: record.slug,
