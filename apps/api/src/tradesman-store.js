@@ -14,10 +14,12 @@ function slugify(input) {
 }
 
 function mapTradesmanRecord(record) {
-  if (!record) return null;
+  if (!record) {
+    return null;
+  }
 
   return {
-    id: record.id, // 🔥 CRITICAL FIX
+    id: record.id,
     tradesmanId: record.tradesmanId,
     businessName: record.businessName,
     slug: record.slug,
@@ -33,7 +35,9 @@ function mapTradesmanRecord(record) {
 }
 
 function sanitizeTradesman(tradesman) {
-  if (!tradesman) return null;
+  if (!tradesman) {
+    return null;
+  }
 
   return {
     tradesmanId: tradesman.tradesmanId,
@@ -104,7 +108,9 @@ async function getTradesmanByEmail(email) {
 }
 
 async function getTradesmanByStripeCustomerId(stripeCustomerId) {
-  if (!stripeCustomerId) return null;
+  if (!stripeCustomerId) {
+    return null;
+  }
 
   const record = await prisma.tradesman.findFirst({
     where: { stripeCustomerId: String(stripeCustomerId) },
@@ -126,7 +132,9 @@ async function updateTradesman(tradesmanId, updates) {
     where: { tradesmanId },
   });
 
-  if (!existing) return null;
+  if (!existing) {
+    return null;
+  }
 
   const updated = await prisma.tradesman.update({
     where: { tradesmanId },
@@ -174,14 +182,71 @@ async function updateTradesmanByStripeCustomerId(stripeCustomerId, updates) {
     where: { stripeCustomerId: String(stripeCustomerId) },
   });
 
-  if (!existing) return null;
+  if (!existing) {
+    return null;
+  }
 
   const updated = await prisma.tradesman.update({
     where: { tradesmanId: existing.tradesmanId },
-    data: updates,
+    data: {
+      businessName:
+        updates.businessName !== undefined
+          ? String(updates.businessName).trim()
+          : existing.businessName,
+      email:
+        updates.email !== undefined
+          ? String(updates.email).trim().toLowerCase()
+          : existing.email,
+      slug:
+        updates.slug !== undefined ? slugify(updates.slug) : existing.slug,
+      passwordHash:
+        updates.passwordHash !== undefined
+          ? String(updates.passwordHash)
+          : existing.passwordHash,
+      subscriptionStatus:
+        updates.subscriptionStatus !== undefined
+          ? String(updates.subscriptionStatus)
+          : existing.subscriptionStatus,
+      stripeCustomerId:
+        updates.stripeCustomerId !== undefined
+          ? updates.stripeCustomerId
+          : existing.stripeCustomerId,
+      stripeSubscriptionId:
+        updates.stripeSubscriptionId !== undefined
+          ? updates.stripeSubscriptionId
+          : existing.stripeSubscriptionId,
+      stripeCheckoutSessionId:
+        updates.stripeCheckoutSessionId !== undefined
+          ? updates.stripeCheckoutSessionId
+          : existing.stripeCheckoutSessionId,
+      plan:
+        updates.plan !== undefined ? updates.plan : existing.plan,
+    },
   });
 
   return mapTradesmanRecord(updated);
+}
+
+async function seedDefaultTradesman() {
+  const existing = await getTradesmanByEmail("owner@leedskitchen.co.uk");
+  if (existing) {
+    return existing;
+  }
+
+  const created = await prisma.tradesman.create({
+    data: {
+      tradesmanId: generateTradesmanId(),
+      businessName: "Leeds Kitchen Co",
+      slug: "leeds-kitchen-co",
+      email: "owner@leedskitchen.co.uk",
+      passwordHash:
+        "$2b$10$3euPcmQFCiblsZeEu5s7p.9vL7Wn0VQnM4f9uQf0Y0lYHfM4v0v9a",
+      subscriptionStatus: "ACTIVE",
+      plan: "starter",
+    },
+  });
+
+  return mapTradesmanRecord(created);
 }
 
 module.exports = {
@@ -194,4 +259,5 @@ module.exports = {
   updateTradesman,
   updateTradesmanByStripeCustomerId,
   sanitizeTradesman,
+  seedDefaultTradesman,
 };
