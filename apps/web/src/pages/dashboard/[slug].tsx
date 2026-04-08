@@ -73,7 +73,10 @@ export default function TradesmanDashboardPage() {
       return;
     }
 
-    async function loadDashboard(preserveSelected = false, nextStatusFilter = statusFilter) {
+    async function loadDashboard(
+      preserveSelected = false,
+      nextStatusFilter = statusFilter
+    ) {
       setLoading(true);
       setError(null);
 
@@ -114,11 +117,14 @@ export default function TradesmanDashboardPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          cache: "no-store",
         });
 
         if (!leadsResponse.ok) {
           const problem = await leadsResponse.json().catch(() => null);
-          throw new Error(problem?.error || `Failed to fetch leads: ${leadsResponse.status}`);
+          throw new Error(
+            problem?.error || `Failed to fetch leads: ${leadsResponse.status}`
+          );
         }
 
         const leadData = (await leadsResponse.json()) as Lead[];
@@ -128,7 +134,9 @@ export default function TradesmanDashboardPage() {
         if (!preserveSelected) {
           setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
         } else if (selectedLeadId) {
-          const stillExists = nextLeads.some((lead) => lead.leadId === selectedLeadId);
+          const stillExists = nextLeads.some(
+            (lead) => lead.leadId === selectedLeadId
+          );
           if (!stillExists) {
             setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
           }
@@ -151,42 +159,76 @@ export default function TradesmanDashboardPage() {
     [leads, selectedLeadId]
   );
 
-  async function reloadLeads(preserveSelected = true, nextStatusFilter = statusFilter) {
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: leads.length,
+      NEW: 0,
+      APPROVED: 0,
+      QUOTED: 0,
+      REJECTED: 0,
+    };
+
+    for (const lead of leads) {
+      const key = String(lead.status || "").toUpperCase();
+      if (counts[key] !== undefined) {
+        counts[key] += 1;
+      }
+    }
+
+    return counts;
+  }, [leads]);
+
+  async function reloadLeads(
+    preserveSelected = true,
+    nextStatusFilter = statusFilter
+  ) {
     const token = localStorage.getItem("trademate_token");
     if (!token) {
       await router.push("/login");
       return;
     }
 
-    const url =
-      nextStatusFilter && nextStatusFilter !== "ALL"
-        ? `${API_BASE}/leads?status=${encodeURIComponent(nextStatusFilter)}`
-        : `${API_BASE}/leads`;
+    setLoading(true);
+    setError(null);
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+      const url =
+        nextStatusFilter && nextStatusFilter !== "ALL"
+          ? `${API_BASE}/leads?status=${encodeURIComponent(nextStatusFilter)}`
+          : `${API_BASE}/leads`;
 
-    const problem = await response.json().catch(() => null);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
-      throw new Error(problem?.error || `Failed to fetch leads: ${response.status}`);
-    }
+      const data = await response.json().catch(() => null);
 
-    const nextLeads = Array.isArray(problem) ? problem : [];
-    setLeads(nextLeads);
+      if (!response.ok) {
+        throw new Error(data?.error || `Failed to fetch leads: ${response.status}`);
+      }
 
-    if (!preserveSelected) {
-      setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
-    } else if (selectedLeadId) {
-      const stillExists = nextLeads.some((lead) => lead.leadId === selectedLeadId);
-      if (!stillExists) {
+      const nextLeads = Array.isArray(data) ? data : [];
+      setLeads(nextLeads);
+
+      if (!preserveSelected) {
+        setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
+      } else if (selectedLeadId) {
+        const stillExists = nextLeads.some(
+          (lead) => lead.leadId === selectedLeadId
+        );
+        if (!stillExists) {
+          setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
+        }
+      } else {
         setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
       }
-    } else {
-      setSelectedLeadId(nextLeads.length > 0 ? nextLeads[0].leadId : null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -201,22 +243,28 @@ export default function TradesmanDashboardPage() {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      cache: "no-store",
     });
 
-    const problem = await response.json().catch(() => null);
+    const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(problem?.error || `Failed to fetch lead: ${response.status}`);
+      throw new Error(data?.error || `Failed to fetch lead: ${response.status}`);
     }
 
-    const updatedLead = problem as Lead;
+    const updatedLead = data as Lead;
 
     setLeads((current) =>
-      current.map((lead) => (lead.leadId === updatedLead.leadId ? updatedLead : lead))
+      current.map((lead) =>
+        lead.leadId === updatedLead.leadId ? updatedLead : lead
+      )
     );
   }
 
-  async function runLeadAction(action: "approve" | "reject" | "quote", leadId: string) {
+  async function runLeadAction(
+    action: "approve" | "reject" | "quote",
+    leadId: string
+  ) {
     setActionLoading(action);
     setError(null);
 
@@ -262,7 +310,7 @@ export default function TradesmanDashboardPage() {
     return (
       <div style={summaryCardStyle}>
         <div style={summaryLabelStyle}>{label}</div>
-        <div style={summaryValueStyle}>{String(value ?? "—")}</div>
+        <div style={summaryValueStyle}>{formatValue(value)}</div>
       </div>
     );
   }
@@ -271,6 +319,8 @@ export default function TradesmanDashboardPage() {
     localStorage.removeItem("trademate_token");
     await router.push("/login");
   }
+
+  const leadSummary = selectedLead ? buildLeadSummary(selectedLead) : null;
 
   return (
     <main
@@ -433,6 +483,8 @@ export default function TradesmanDashboardPage() {
             >
               {STATUS_TABS.map((tab) => {
                 const active = statusFilter === tab.key;
+                const count = statusCounts[tab.key] ?? 0;
+
                 return (
                   <button
                     key={tab.key}
@@ -449,9 +501,20 @@ export default function TradesmanDashboardPage() {
                       cursor: "pointer",
                       fontWeight: 700,
                       fontSize: 12,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
                     }}
                   >
-                    {tab.label}
+                    <span>{tab.label}</span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        opacity: active ? 0.9 : 0.7,
+                      }}
+                    >
+                      {count}
+                    </span>
                   </button>
                 );
               })}
@@ -491,7 +554,7 @@ export default function TradesmanDashboardPage() {
                         }}
                       >
                         <div style={{ fontWeight: 700, fontSize: 16 }}>
-                          {lead.tradeKind || "Unknown trade"}
+                          {humanizeEnum(lead.tradeKind) || "Unknown trade"}
                         </div>
                         <StatusBadge status={lead.status || "NEW"} />
                       </div>
@@ -508,19 +571,27 @@ export default function TradesmanDashboardPage() {
                       </div>
 
                       <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Phase</span>
-                        <span style={cardMetaValueStyle}>{lead.phase || "—"}</span>
+                        <span style={cardMetaLabelStyle}>Customer</span>
+                        <span style={cardMetaValueStyle}>
+                          {String(getFieldValue(lead, "firstName"))}
+                        </span>
                       </div>
                       <div style={cardMetaRowStyle}>
                         <span style={cardMetaLabelStyle}>Postcode</span>
                         <span style={cardMetaValueStyle}>
-                          {String(getFieldValue(lead, "postcode"))}
+                          {formatValue(getFieldValue(lead, "postcode"))}
                         </span>
                       </div>
                       <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Email</span>
+                        <span style={cardMetaLabelStyle}>Timeline</span>
                         <span style={cardMetaValueStyle}>
-                          {String(getFieldValue(lead, "email"))}
+                          {formatValue(getFieldValue(lead, "timeline"))}
+                        </span>
+                      </div>
+                      <div style={cardMetaRowStyle}>
+                        <span style={cardMetaLabelStyle}>Created</span>
+                        <span style={cardMetaValueStyle}>
+                          {formatDateTime(lead.createdAt)}
                         </span>
                       </div>
                     </button>
@@ -565,7 +636,7 @@ export default function TradesmanDashboardPage() {
                       }}
                     >
                       <h2 style={{ margin: 0, fontSize: 28 }}>
-                        {selectedLead.tradeKind || "Lead detail"}
+                        {humanizeEnum(selectedLead.tradeKind) || "Lead detail"}
                       </h2>
                       <StatusBadge status={selectedLead.status || "NEW"} />
                     </div>
@@ -599,6 +670,34 @@ export default function TradesmanDashboardPage() {
                   </div>
                 </div>
 
+                {leadSummary ? (
+                  <div
+                    style={{
+                      marginBottom: 20,
+                      background: "#f8fafc",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 14,
+                      padding: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#6b7280",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Lead summary
+                    </div>
+                    <div style={{ fontSize: 15, lineHeight: 1.7, color: "#111827" }}>
+                      {leadSummary}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div
                   style={{
                     display: "grid",
@@ -607,8 +706,8 @@ export default function TradesmanDashboardPage() {
                     marginBottom: 20,
                   }}
                 >
-                  {renderField("Phase", selectedLead.phase || "—")}
-                  {renderField("Status", selectedLead.status || "NEW")}
+                  {renderField("Phase", humanizeEnum(selectedLead.phase || "—"))}
+                  {renderField("Status", humanizeEnum(selectedLead.status || "NEW"))}
                   {renderField("Postcode", getFieldValue(selectedLead, "postcode"))}
                   {renderField("Email", getFieldValue(selectedLead, "email"))}
                   {renderField("Phone", getFieldValue(selectedLead, "phone"))}
@@ -625,26 +724,26 @@ export default function TradesmanDashboardPage() {
                 >
                   <div style={panelCardStyle}>
                     <h3 style={panelTitleStyle}>Project details</h3>
-                    <DetailRow label="Job type" value={getFieldValue(selectedLead, "jobType")} />
-                    <DetailRow label="Kitchen size" value={getFieldValue(selectedLead, "kitchenSize")} />
-                    <DetailRow label="Layout change" value={getFieldValue(selectedLead, "layoutChange")} />
-                    <DetailRow label="Units supply" value={getFieldValue(selectedLead, "unitsSupply")} />
-                    <DetailRow label="Timeline" value={getFieldValue(selectedLead, "timeline")} />
+                    <DetailRow label="Job type" value={humanizeEnum(getFieldValue(selectedLead, "jobType"))} />
+                    <DetailRow label="Kitchen size" value={humanizeEnum(getFieldValue(selectedLead, "kitchenSize"))} />
+                    <DetailRow label="Layout change" value={humanizeEnum(getFieldValue(selectedLead, "layoutChange"))} />
+                    <DetailRow label="Units supply" value={humanizeEnum(getFieldValue(selectedLead, "unitsSupply"))} />
+                    <DetailRow label="Timeline" value={humanizeEnum(getFieldValue(selectedLead, "timeline"))} />
                     <DetailRow
                       label="Budget disclosure"
-                      value={(selectedLead.budget as any)?.disclosure || "—"}
+                      value={humanizeEnum((selectedLead.budget as any)?.disclosure || "—")}
                     />
                   </div>
 
                   <div style={panelCardStyle}>
                     <h3 style={panelTitleStyle}>Timeline & activity</h3>
-                    <DetailRow label="Created" value={selectedLead.createdAt || "—"} />
-                    <DetailRow label="Approved" value={selectedLead.approvedAt || "—"} />
-                    <DetailRow label="Rejected" value={selectedLead.rejectedAt || "—"} />
-                    <DetailRow label="Quoted" value={selectedLead.quotedAt || "—"} />
+                    <DetailRow label="Created" value={formatDateTime(selectedLead.createdAt)} />
+                    <DetailRow label="Approved" value={formatDateTime(selectedLead.approvedAt)} />
+                    <DetailRow label="Rejected" value={formatDateTime(selectedLead.rejectedAt)} />
+                    <DetailRow label="Quoted" value={formatDateTime(selectedLead.quotedAt)} />
                     <DetailRow
                       label="Last message"
-                      value={(selectedLead.audit as any)?.lastUserMessageAt || "—"}
+                      value={formatDateTime((selectedLead.audit as any)?.lastUserMessageAt)}
                     />
                     <DetailRow
                       label="Turn count"
@@ -792,7 +891,7 @@ function StatusBadge({ status }: { status: string }) {
         border: `1px solid ${style.border}`,
       }}
     >
-      {status}
+      {humanizeEnum(status)}
     </span>
   );
 }
@@ -809,9 +908,90 @@ function DetailRow({ label, value }: { label: string; value: unknown }) {
       }}
     >
       <span style={{ color: "#6b7280" }}>{label}</span>
-      <span style={{ fontWeight: 600, textAlign: "right" }}>{String(value ?? "—")}</span>
+      <span style={{ fontWeight: 600, textAlign: "right" }}>
+        {formatValue(value)}
+      </span>
     </div>
   );
+}
+
+function humanizeEnum(value: unknown) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  const text = String(value).trim();
+  if (!text) {
+    return "—";
+  }
+
+  return text
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function formatDateTime(value: unknown) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  if (typeof value === "string") {
+    return humanizeEnum(value);
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function buildLeadSummary(lead: Lead) {
+  const firstName = String(lead.fields?.firstName?.value || "").trim();
+  const postcode = String(lead.fields?.postcode?.value || "").trim();
+  const jobType = humanizeEnum(lead.fields?.jobType?.value || lead.tradeKind || "job");
+  const kitchenSize = humanizeEnum(lead.fields?.kitchenSize?.value || "");
+  const layoutChange = humanizeEnum(lead.fields?.layoutChange?.value || "");
+  const unitsSupply = humanizeEnum(lead.fields?.unitsSupply?.value || "");
+  const timeline = humanizeEnum(lead.fields?.timeline?.value || "");
+  const budgetNotes =
+    (lead.fields?.budget?.value as any)?.indicators?.notes ||
+    (lead.budget as any)?.indicators?.notes ||
+    "";
+
+  const parts = [
+    firstName ? `${firstName} is enquiring about ${jobType.toLowerCase()}` : `Customer is enquiring about ${jobType.toLowerCase()}`,
+    postcode ? `in ${postcode}` : "",
+    kitchenSize && kitchenSize !== "—" ? `for a ${kitchenSize.toLowerCase()} kitchen` : "",
+    layoutChange && layoutChange !== "—" ? `with ${layoutChange.toLowerCase()} planned` : "",
+    unitsSupply && unitsSupply !== "—" ? `and ${unitsSupply.toLowerCase()}` : "",
+    timeline && timeline !== "—" ? `The target timeline is ${timeline.toLowerCase()}.` : "",
+    budgetNotes ? `Budget signal captured: ${budgetNotes}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return parts || null;
 }
 
 const emptyStateStyle: React.CSSProperties = {

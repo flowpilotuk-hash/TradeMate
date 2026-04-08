@@ -267,21 +267,30 @@ function createInitialConversationStateV1(args) {
   };
 }
 
+function hasFieldValue(field) {
+  const actual = field?.value;
+  return !(
+    actual === undefined ||
+    actual === null ||
+    (typeof actual === "string" && actual.trim() === "")
+  );
+}
+
 function recomputeDerivedState(state) {
   const f = state.fields || {};
 
   const missingProjectFields = [];
-  if (!f.jobType) missingProjectFields.push("jobType");
-  if (!f.postcode) missingProjectFields.push("postcode");
-  if (!f.kitchenSize) missingProjectFields.push("kitchenSize");
-  if (!f.layoutChange) missingProjectFields.push("layoutChange");
-  if (!f.unitsSupply) missingProjectFields.push("unitsSupply");
-  if (!f.timeline) missingProjectFields.push("timeline");
-  if (!f.budget) missingProjectFields.push("budget");
+  if (!hasFieldValue(f.jobType)) missingProjectFields.push("jobType");
+  if (!hasFieldValue(f.postcode)) missingProjectFields.push("postcode");
+  if (!hasFieldValue(f.kitchenSize)) missingProjectFields.push("kitchenSize");
+  if (!hasFieldValue(f.layoutChange)) missingProjectFields.push("layoutChange");
+  if (!hasFieldValue(f.unitsSupply)) missingProjectFields.push("unitsSupply");
+  if (!hasFieldValue(f.timeline)) missingProjectFields.push("timeline");
+  if (!hasFieldValue(f.budget)) missingProjectFields.push("budget");
 
   const missingContactFields = [];
-  if (!f.firstName) missingContactFields.push("firstName");
-  if (!f.email) missingContactFields.push("email");
+  if (!hasFieldValue(f.firstName)) missingContactFields.push("firstName");
+  if (!hasFieldValue(f.email)) missingContactFields.push("email");
 
   const hasAtLeastFourProjectFields = 7 - missingProjectFields.length >= 4;
 
@@ -300,12 +309,26 @@ function recomputeDerivedState(state) {
       : "COLLECTING";
 
   const photoMissing =
-    !f.photos || !f.photos.value || ((f.photos.value.assetIds || []).length === 0);
+    !f.photos ||
+    !f.photos.value ||
+    ((f.photos.value.assetIds || []).length === 0);
 
   const flags = [];
   if (state.meta.timelineSpecific) flags.push("TIME_SENSITIVE");
   if (photoMissing) flags.push("PHOTO_MISSING");
   flags.push("BUDGET_MEDIUM_RISK");
+
+  const normalizedBudget = hasFieldValue(f.budget)
+    ? {
+        disclosure: f.budget.value?.disclosure || "NOT_DISCLOSED",
+        signal: f.budget.value?.signal || "UNCLEAR",
+        risk: f.budget.value?.risk || "MEDIUM",
+        indicators: f.budget.value?.indicators || {},
+      }
+    : {
+        ...state.budget,
+        risk: "MEDIUM",
+      };
 
   return {
     ...state,
@@ -316,13 +339,10 @@ function recomputeDerivedState(state) {
       handoffReady: isFull,
       contactRequested: state.meta.contactRequested || contactRequiredNow,
     },
-    budget: {
-      ...state.budget,
-      risk: "MEDIUM",
-    },
+    budget: normalizedBudget,
     classification: {
       completion: isFull ? "FULL" : "PARTIAL",
-      actionable: Boolean(f.firstName && f.email),
+      actionable: Boolean(hasFieldValue(f.firstName) && hasFieldValue(f.email)),
       flags,
     },
   };
@@ -367,6 +387,151 @@ function normalizeSingleLine(text) {
     .trim();
 }
 
+function pushUpdate(updates, key, value, confidence = 0.9, source = "ai") {
+  const existingIndex = updates.findIndex((item) => item.key === key);
+  const nextItem = { key, value, confidence, source };
+
+  if (existingIndex >= 0) {
+    updates[existingIndex] = nextItem;
+    return;
+  }
+
+  updates.push(nextItem);
+}
+
+function parseBudgetValue(text, currentQuestion) {
+  const lower = text.toLowerCase();
+
+  const lowBudgetSignal =
+    /\b(cheap as possible|lowest price|keep it under 5k|very tight budget)\b/.test(
+      lower
+    );
+
+  const budgetRangeMatch = text.match(
+    /\bbetween\s+£?\s?(\d+(?:[.,]\d+)?)\s?k?\s+and\s+£?\s?(\d+(?:[.,]\d+)?)\s?k?\b/i
+  );
+
+  const explicitBudgetMatch =
+    text.match(
+      /\b(?:budget is|budget|around|about|roughly|under|up to)\s+£?\s?(\d+(?:[.,]\d+)?)\s?k?\b/i
+    ) ||
+    text.match(/\b£\s?(\d+(?:[.,]\d+)?)\s?k?\b/i) ||
+    (currentQuestion === "budget"
+      ? text.match(/\b(\d+(?:[.,]\d+)?)\s?k?\b/i)
+      : null);
+
+  if (budgetRangeMatch) {
+    return {
+      disclosure: "EXPLICIT",
+      signal: lowBudgetSignal ? "LOW" : "UNCLEAR",
+      risk: "MEDIUM",
+      indicators: { notes: budgetRangeMatch[0] },
+    };
+  }
+
+  if (explicitBudgetMatch) {
+    return {
+      disclosure: "EXPLICIT",
+      signal: lowBudgetSignal ? "LOW" : "UNCLEAR",
+      risk: "MEDIUM",
+      indicators: { notes: explicitBudgetMatch[0] },
+    };
+  }
+
+  if (
+    /\b(not sure on budget|unsure on budget|don't know the budget|no idea on budget)\b/.test(
+      lower
+    )
+  ) {
+    return {
+      disclosure: "NOT_DISCLOSED",
+      signal: "UNCLEAR",
+      risk: "MEDIUM",
+      indicators: { notes: "budget unknown" },
+    };
+  }
+
+  if (lowBudgetSignal) {
+    return {
+      disclosure: "INDIRECT",
+      signal: "LOW",
+      risk: "MEDIUM",
+      indicators: { notes: "low budget signal" },
+    };
+  }
+
+  return null;
+}
+
+function parseTimelineValue(text) {
+  const lower = text.toLowerCase();
+
+  if (/\b(asap|urgent|straight away|as soon as possible|immediately)\b/.test(lower)) {
+    return "ASAP";
+  }
+
+  if (
+    /\b(next month|in a month|within 3 months|in the next few months|soon)\b/.test(lower)
+  ) {
+    return "1_3_MONTHS";
+  }
+
+  if (/\b(in 3 months|in 4 months|in 5 months|in 6 months)\b/.test(lower)) {
+    return "3_6_MONTHS";
+  }
+
+  if (/\b(later this year|next year|no rush|not urgent)\b/.test(lower)) {
+    return "6_PLUS";
+  }
+
+  if (/\b(this summer|summer)\b/.test(lower)) {
+    return "3_6_MONTHS";
+  }
+
+  if (/\b(this autumn|autumn|fall)\b/.test(lower)) {
+    return "3_6_MONTHS";
+  }
+
+  if (/\b(this winter|winter|this spring|spring)\b/.test(lower)) {
+    return "1_3_MONTHS";
+  }
+
+  const monthNames = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+
+  const monthIndex = monthNames.findIndex((month) =>
+    new RegExp(`\\b${month}\\b`, "i").test(lower)
+  );
+
+  if (monthIndex >= 0) {
+    const now = new Date();
+    const currentMonthIndex = now.getMonth();
+    let diff = monthIndex - currentMonthIndex;
+
+    if (diff < 0) {
+      diff += 12;
+    }
+
+    if (diff <= 2) return "1_3_MONTHS";
+    if (diff <= 5) return "3_6_MONTHS";
+    return "6_PLUS";
+  }
+
+  return null;
+}
+
 function extractUpdatesFromMessage(message, state) {
   const text = normalizeSingleLine(message);
   const lower = text.toLowerCase();
@@ -377,111 +542,116 @@ function extractUpdatesFromMessage(message, state) {
 
   const postcodeMatch = text.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i);
   if (postcodeMatch) {
-    updates.push({
-      key: "postcode",
-      value: postcodeMatch[1].toUpperCase().replace(/\s+/, " "),
-      confidence: 0.94,
-      source: "ai",
-    });
+    pushUpdate(
+      updates,
+      "postcode",
+      postcodeMatch[1].toUpperCase().replace(/\s+/, " "),
+      0.94
+    );
   }
 
   const emailMatch = text.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
 
-if (emailMatch) {
-  updates.push({
-    key: "email",
-    value: emailMatch[0].trim().toLowerCase(),
-    confidence: 0.99,
-    source: "ai",
-  });
-} else if (currentQuestion === "email") {
-  const compactEmail = text.replace(/\s+/g, "");
+  if (emailMatch) {
+    pushUpdate(updates, "email", emailMatch[0].trim().toLowerCase(), 0.99);
+  } else if (currentQuestion === "email") {
+    const compactEmail = text.replace(/\s+/g, "");
 
-  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(compactEmail)) {
-    updates.push({
-      key: "email",
-      value: compactEmail.toLowerCase(),
-      confidence: 0.99,
-      source: "ai",
-    });
+    if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(compactEmail)) {
+      pushUpdate(updates, "email", compactEmail.toLowerCase(), 0.99);
+    }
   }
-}
 
   const phoneMatch = text.match(/\b(?:\+44\s?7\d{3}|07\d{3})\s?\d{3}\s?\d{3}\b/);
   if (phoneMatch) {
-    updates.push({
-      key: "phone",
-      value: phoneMatch[0].trim(),
-      confidence: 0.92,
-      source: "ai",
-    });
+    pushUpdate(updates, "phone", phoneMatch[0].trim(), 0.92);
   }
 
-  if (/\bworktops?\b/.test(lower)) {
-    updates.push({ key: "jobType", value: "WORKTOPS", confidence: 0.91, source: "ai" });
-  } else if (/\b(refresh|doors only|replacement doors)\b/.test(lower)) {
-    updates.push({ key: "jobType", value: "REFRESH", confidence: 0.9, source: "ai" });
-  } else if (/\bkitchen\b/.test(lower)) {
-    updates.push({ key: "jobType", value: "FULL_FIT", confidence: 0.82, source: "ai" });
+  if (/\b(worktops?|countertops?)\b/.test(lower) && /\b(doors?|refresh|replacement)\b/.test(lower)) {
+    pushUpdate(updates, "jobType", "REFRESH", 0.9);
+  } else if (/\b(worktops?|countertops?)\b/.test(lower)) {
+    pushUpdate(updates, "jobType", "WORKTOPS", 0.91);
+  } else if (/\b(refresh|doors only|replacement doors|facelift)\b/.test(lower)) {
+    pushUpdate(updates, "jobType", "REFRESH", 0.9);
+  } else if (/\b(full kitchen|new kitchen|complete kitchen|kitchen fit|kitchen fitted|kitchen installation|kitchen)\b/.test(lower)) {
+    pushUpdate(updates, "jobType", "FULL_FIT", 0.82);
+  } else if (currentQuestion === "jobType") {
+    if (/\b(full|full fit|new kitchen|complete)\b/.test(lower)) {
+      pushUpdate(updates, "jobType", "FULL_FIT", 0.9);
+    } else if (/\b(refresh|doors)\b/.test(lower)) {
+      pushUpdate(updates, "jobType", "REFRESH", 0.9);
+    } else if (/\b(worktops?)\b/.test(lower)) {
+      pushUpdate(updates, "jobType", "WORKTOPS", 0.9);
+    }
   }
 
   if (/\bsmall\b/.test(lower)) {
-    updates.push({ key: "kitchenSize", value: "SMALL", confidence: 0.9, source: "ai" });
+    pushUpdate(updates, "kitchenSize", "SMALL", 0.9);
   } else if (/\bmedium\b/.test(lower)) {
-    updates.push({ key: "kitchenSize", value: "MEDIUM", confidence: 0.9, source: "ai" });
+    pushUpdate(updates, "kitchenSize", "MEDIUM", 0.9);
   } else if (/\blarge\b/.test(lower)) {
-    updates.push({ key: "kitchenSize", value: "LARGE", confidence: 0.9, source: "ai" });
+    pushUpdate(updates, "kitchenSize", "LARGE", 0.9);
+  } else if (currentQuestion === "kitchenSize") {
+    if (/\bcompact\b/.test(lower)) {
+      pushUpdate(updates, "kitchenSize", "SMALL", 0.86);
+    } else if (/\baverage\b/.test(lower)) {
+      pushUpdate(updates, "kitchenSize", "MEDIUM", 0.86);
+    } else if (/\bbig\b/.test(lower)) {
+      pushUpdate(updates, "kitchenSize", "LARGE", 0.86);
+    }
   }
 
   if (
-    /\b(current layout|keep(ing)? the current layout|keep(ing)? the layout|same layout|existing layout|no layout change|no major changes)\b/.test(
+    /\b(current layout|keeping current layout|keep current layout|keeping the current layout|keep the current layout|keeping the layout|keep the layout|same layout|existing layout|no layout change|no major changes)\b/.test(
       lower
     )
   ) {
-    updates.push({ key: "layoutChange", value: "NONE", confidence: 0.95, source: "ai" });
+    pushUpdate(updates, "layoutChange", "NONE", 0.95);
   } else if (
     /\b(minor changes|small changes|few changes|a few changes|some changes|tweak(s)?|minor layout changes)\b/.test(
       lower
     )
   ) {
-    updates.push({ key: "layoutChange", value: "MINOR", confidence: 0.92, source: "ai" });
+    pushUpdate(updates, "layoutChange", "MINOR", 0.92);
   } else if (
     /\b(significant changes|major changes|major layout changes|full layout change|moving everything|reconfigure|reconfiguration)\b/.test(
       lower
     )
   ) {
-    updates.push({ key: "layoutChange", value: "MAJOR", confidence: 0.92, source: "ai" });
+    pushUpdate(updates, "layoutChange", "MAJOR", 0.92);
+  } else if (currentQuestion === "layoutChange") {
+    if (/\bcurrent\b/.test(lower)) {
+      pushUpdate(updates, "layoutChange", "NONE", 0.9);
+    } else if (/\bminor\b/.test(lower)) {
+      pushUpdate(updates, "layoutChange", "MINOR", 0.9);
+    } else if (/\bmajor\b/.test(lower)) {
+      pushUpdate(updates, "layoutChange", "MAJOR", 0.9);
+    }
   }
 
   if (
-    /\b(i['’]?ll supply the units|i will supply the units|customer supplied|already have the units|i have the units|i bought the units|i'll provide the units)\b/.test(
+    /\b(i['’]?ll supply the units|i will supply the units|customer supplied|already have the units|i have the units|i bought the units|i'll provide the units|we already bought the units)\b/.test(
       lower
     )
   ) {
-    updates.push({
-      key: "unitsSupply",
-      value: "CUSTOMER_SUPPLIED",
-      confidence: 0.9,
-      source: "ai",
-    });
+    pushUpdate(updates, "unitsSupply", "CUSTOMER_SUPPLIED", 0.9);
   } else if (
     /\b(you supply|supply and fit|need you to supply|please supply|want supply and fit)\b/.test(
       lower
     )
   ) {
-    updates.push({
-      key: "unitsSupply",
-      value: "FITTER_SUPPLIED",
-      confidence: 0.9,
-      source: "ai",
-    });
-  } else if (/\b(not sure|unsure|don't know)\b/.test(lower) && currentQuestion === "unitsSupply") {
-    updates.push({
-      key: "unitsSupply",
-      value: "UNSURE",
-      confidence: 0.88,
-      source: "ai",
-    });
+    pushUpdate(updates, "unitsSupply", "FITTER_SUPPLIED", 0.9);
+  } else if (
+    /\b(not sure|unsure|don't know)\b/.test(lower) &&
+    currentQuestion === "unitsSupply"
+  ) {
+    pushUpdate(updates, "unitsSupply", "UNSURE", 0.88);
+  } else if (currentQuestion === "unitsSupply") {
+    if (/\bmyself|i will|customer\b/.test(lower)) {
+      pushUpdate(updates, "unitsSupply", "CUSTOMER_SUPPLIED", 0.85);
+    } else if (/\byou\b/.test(lower)) {
+      pushUpdate(updates, "unitsSupply", "FITTER_SUPPLIED", 0.85);
+    }
   }
 
   const firstNameMatch =
@@ -491,105 +661,26 @@ if (emailMatch) {
 
   if (firstNameMatch) {
     const rawName = firstNameMatch[1];
-    const normalizedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
+    const normalizedName =
+      rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase();
 
-    updates.push({
-      key: "firstName",
-      value: normalizedName,
-      confidence: 0.93,
-      source: "ai",
-    });
+    pushUpdate(updates, "firstName", normalizedName, 0.93);
   } else if (
     currentQuestion === "firstName" &&
     /^[A-Za-z][A-Za-z' -]{1,40}$/.test(text) &&
     !/\b(layout|changes|kitchen|budget|month|email|postcode)\b/i.test(text)
   ) {
-    updates.push({
-      key: "firstName",
-      value: text.trim().split(/\s+/)[0],
-      confidence: 0.97,
-      source: "ai",
-    });
+    pushUpdate(updates, "firstName", text.trim().split(/\s+/)[0], 0.97);
   }
 
-  const lowBudgetSignal =
-    /\b(cheap as possible|lowest price|keep it under 5k|very tight budget)\b/.test(lower);
-
-  const budgetRangeMatch =
-    text.match(/\bbetween\s+£?\s?(\d+(?:[.,]\d+)?)\s?k?\s+and\s+£?\s?(\d+(?:[.,]\d+)?)\s?k?\b/i);
-
-  const explicitBudgetMatch =
-    text.match(/\b(?:budget is|budget|around|about|roughly|under|up to)\s+£?\s?(\d+(?:[.,]\d+)?)\s?k\b/i) ||
-    text.match(/\b£\s?(\d+(?:[.,]\d+)?)\s?k?\b/i) ||
-    (currentQuestion === "budget" ? text.match(/\b(\d+(?:[.,]\d+)?)\s?k\b/i) : null);
-
-  if (budgetRangeMatch) {
-    updates.push({
-      key: "budget",
-      value: {
-        disclosure: "EXPLICIT",
-        signal: lowBudgetSignal ? "LOW" : "UNCLEAR",
-        risk: "MEDIUM",
-        indicators: { notes: budgetRangeMatch[0] },
-      },
-      confidence: 0.9,
-      source: "ai",
-    });
-  } else if (explicitBudgetMatch) {
-    updates.push({
-      key: "budget",
-      value: {
-        disclosure: "EXPLICIT",
-        signal: lowBudgetSignal ? "LOW" : "UNCLEAR",
-        risk: "MEDIUM",
-        indicators: { notes: explicitBudgetMatch[0] },
-      },
-      confidence: 0.9,
-      source: "ai",
-    });
-  } else if (
-    /\b(not sure on budget|unsure on budget|don't know the budget|no idea on budget)\b/.test(
-      lower
-    )
-  ) {
-    updates.push({
-      key: "budget",
-      value: {
-        disclosure: "NOT_DISCLOSED",
-        signal: "UNCLEAR",
-        risk: "MEDIUM",
-        indicators: { notes: "budget unknown" },
-      },
-      confidence: 0.85,
-      source: "ai",
-    });
-  } else if (lowBudgetSignal) {
-    updates.push({
-      key: "budget",
-      value: {
-        disclosure: "INDIRECT",
-        signal: "LOW",
-        risk: "MEDIUM",
-        indicators: { notes: "low budget signal" },
-      },
-      confidence: 0.85,
-      source: "ai",
-    });
+  const parsedBudget = parseBudgetValue(text, currentQuestion);
+  if (parsedBudget) {
+    pushUpdate(updates, "budget", parsedBudget, 0.9);
   }
 
-  if (/\b(asap|urgent|straight away|as soon as possible)\b/.test(lower)) {
-    updates.push({ key: "timeline", value: "ASAP", confidence: 0.96, source: "ai" });
-    timelineSpecific = true;
-  } else if (
-    /\b(next month|in a month|within 3 months|in the next few months|soon)\b/.test(lower)
-  ) {
-    updates.push({ key: "timeline", value: "1_3_MONTHS", confidence: 0.91, source: "ai" });
-    timelineSpecific = true;
-  } else if (/\b(in 3 months|in 4 months|in 6 months)\b/.test(lower)) {
-    updates.push({ key: "timeline", value: "3_6_MONTHS", confidence: 0.89, source: "ai" });
-    timelineSpecific = true;
-  } else if (/\b(later this year|next year|no rush)\b/.test(lower)) {
-    updates.push({ key: "timeline", value: "6_PLUS", confidence: 0.88, source: "ai" });
+  const parsedTimeline = parseTimelineValue(text);
+  if (parsedTimeline) {
+    pushUpdate(updates, "timeline", parsedTimeline, 0.91);
     timelineSpecific = true;
   }
 
@@ -600,13 +691,29 @@ function getNextQuestion(state) {
   const fields = (state && state.fields) || {};
 
   const orderedFields = [
-    { key: "jobType", question: "Are you looking for a full kitchen fit, a refresh, or worktops only?" },
+    {
+      key: "jobType",
+      question: "Are you looking for a full kitchen fit, a refresh, or worktops only?",
+    },
     { key: "postcode", question: "What postcode is the property in?" },
-    { key: "kitchenSize", question: "Roughly what size is the kitchen - small, medium, or large?" },
-    { key: "layoutChange", question: "Are you keeping the current layout, making minor changes, or changing it significantly?" },
-    { key: "unitsSupply", question: "Will you be supplying the units, or are you looking for supply and fit?" },
+    {
+      key: "kitchenSize",
+      question: "Roughly what size is the kitchen - small, medium, or large?",
+    },
+    {
+      key: "layoutChange",
+      question:
+        "Are you keeping the current layout, making minor changes, or changing it significantly?",
+    },
+    {
+      key: "unitsSupply",
+      question: "Will you be supplying the units, or are you looking for supply and fit?",
+    },
     { key: "timeline", question: "When were you hoping to get this done?" },
-    { key: "budget", question: "Just so we're aligned, what sort of budget range did you have in mind for the project?" },
+    {
+      key: "budget",
+      question: "Just so we're aligned, what sort of budget range did you have in mind for the project?",
+    },
     { key: "firstName", question: "Can I grab your first name?" },
     { key: "email", question: "What's the best email to send the confirmation to?" },
   ];
@@ -638,12 +745,16 @@ function getNextQuestion(state) {
 
 function parseLeadIdFromUrl(pathname) {
   const parts = pathname.split("/").filter(Boolean);
-  return parts.length >= 2 && parts[0] === "leads" ? decodeURIComponent(parts[1]) : null;
+  return parts.length >= 2 && parts[0] === "leads"
+    ? decodeURIComponent(parts[1])
+    : null;
 }
 
 function parseTradesmanSlugFromUrl(pathname) {
   const parts = pathname.split("/").filter(Boolean);
-  return parts.length >= 2 && parts[0] === "tradesman" ? decodeURIComponent(parts[1]) : null;
+  return parts.length >= 2 && parts[0] === "tradesman"
+    ? decodeURIComponent(parts[1])
+    : null;
 }
 
 function normalizeQuoteText(input) {
@@ -1096,7 +1207,12 @@ const server = createServer(async (req, res) => {
         slug: tradesman.slug,
       });
 
-      sendJson(res, 200, { token, tradesman: sanitizeTradesman(tradesman) }, allowedOrigin);
+      sendJson(
+        res,
+        200,
+        { token, tradesman: sanitizeTradesman(tradesman) },
+        allowedOrigin
+      );
       return;
     }
 
@@ -1228,7 +1344,9 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && requestUrl.pathname === "/conversation/start") {
       const tradesmanSlug = requestUrl.searchParams.get("tradesmanSlug");
-      const tradesman = tradesmanSlug ? await getTradesmanBySlug(tradesmanSlug) : null;
+      const tradesman = tradesmanSlug
+        ? await getTradesmanBySlug(tradesmanSlug)
+        : null;
 
       if (tradesmanSlug && !tradesman) {
         sendJson(res, 404, { error: "Tradesman not found" }, allowedOrigin);
@@ -1246,7 +1364,11 @@ const server = createServer(async (req, res) => {
       const next = getNextQuestion(created.state);
       const initialMessages = [{ role: "bot", text: next.reply }];
 
-      await updateConversation(created.conversationId, created.state, initialMessages);
+      await updateConversation(
+        created.conversationId,
+        created.state,
+        initialMessages
+      );
 
       logInfo("conversation.started", {
         conversationId: created.conversationId,
@@ -1271,7 +1393,10 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && requestUrl.pathname === "/conversation/apply-updates") {
+    if (
+      req.method === "POST" &&
+      requestUrl.pathname === "/conversation/apply-updates"
+    ) {
       const body = await readJsonBody(req);
 
       if (!body.state || !Array.isArray(body.updates)) {
@@ -1308,7 +1433,9 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const messages = Array.isArray(conversation.messages) ? [...conversation.messages] : [];
+      const messages = Array.isArray(conversation.messages)
+        ? [...conversation.messages]
+        : [];
       messages.push({ role: "user", text: String(message) });
 
       const extracted = extractUpdatesFromMessage(String(message), conversation.state);
@@ -1364,28 +1491,39 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const submissionErrors = validateConversationStateForSubmission(conversation.state);
+      const submissionErrors = validateConversationStateForSubmission(
+        conversation.state
+      );
       if (submissionErrors.length > 0) {
         sendJson(res, 400, { error: submissionErrors.join(", ") }, allowedOrigin);
         return;
       }
 
-let ownership = getTradesmanFromConversationState(conversation.state);
+      let ownership = getTradesmanFromConversationState(conversation.state);
 
-// 🔥 HARD GUARANTEE fallback
-if (!ownership.tradesmanId) {
-  const fallbackSlug =
-    conversation.state?.meta?.tradesmanSlug ||
-    conversation.state?.meta?.slug ||
-    null;
+      if (!ownership.tradesmanId) {
+        const fallbackSlug =
+          conversation.state?.meta?.tradesmanSlug ||
+          conversation.state?.meta?.slug ||
+          null;
 
-  if (fallbackSlug) {
-    const fallbackTradesman = await getTradesmanBySlug(fallbackSlug);
-    if (fallbackTradesman) {
-      ownership.tradesmanId = fallbackTradesman.tradesmanId;
-    }
-  }
-}
+        if (fallbackSlug) {
+          const fallbackTradesman = await getTradesmanBySlug(fallbackSlug);
+          if (fallbackTradesman) {
+            ownership.tradesmanId = fallbackTradesman.tradesmanId;
+            ownership.tradesmanSlug = fallbackTradesman.slug;
+            ownership.tradesmanBusinessName = fallbackTradesman.businessName;
+          }
+        }
+      }
+
+      const normalizedMeta = {
+        ...(conversation.state.meta || {}),
+        tradesmanId: ownership.tradesmanId || null,
+        tradesmanSlug: ownership.tradesmanSlug || null,
+        tradesmanBusinessName: ownership.tradesmanBusinessName || null,
+      };
+
       const lead = await createLead({
         createdAt: new Date().toISOString(),
         status: "NEW",
@@ -1394,7 +1532,7 @@ if (!ownership.tradesmanId) {
         phase: conversation.state.phase,
         classification: conversation.state.classification,
         fields: conversation.state.fields,
-        meta: conversation.state.meta,
+        meta: normalizedMeta,
         budget: conversation.state.budget,
         audit: conversation.state.audit,
         conversationMessages: conversation.messages || [],
