@@ -197,16 +197,6 @@ const ENUM_CONTRADICTION_FIELDS = new Set([
   "timeline",
 ]);
 
-const FIELD_ALIASES = {
-  unitCount: "unit count",
-  layoutShape: "layout shape",
-  servicesMoving: "what's moving",
-  unitsChosen: "whether units are already bought",
-  unitsBrandKnown: "kitchen brand",
-  budgetScope: "budget scope",
-  timelineFlexibility: "timeline flexibility",
-};
-
 function normalizeOrigin(origin) {
   return String(origin || "").trim().replace(/\/+$/, "");
 }
@@ -870,7 +860,7 @@ function parseTimelineValue(text, nowDate = new Date()) {
 
 function splitIntoSegments(text) {
   return normalizeTextForDetection(text)
-    .split(/(?:\s*[.!?]+\s*|\s*,\s*(?=(?:my name is|i(?:'| a)?m\b|email\b|postcode\b|budget\b|same layout\b|small\b|medium\b|large\b|asap\b|autumn\b|summer\b|spring\b|winter\b))|\s+\band\b+\s+(?=(?:my name is|email\b|postcode\b)))/i)
+    .split(/[.!?]+|\s*,\s*|\s+\band\b\s+/i)
     .map((part) => normalizeSingleLine(part))
     .filter(Boolean);
 }
@@ -1576,7 +1566,13 @@ function extractUpdatesFromMessage(message, state) {
       addUniqueNote(notes, `Timeline mentioned: ${parsedTimeline.raw}`);
     }
 
-    inferAnswerFromActiveQuestion(segText, segLower, currentQuestion, updates, notes);
+    inferAnswerFromActiveQuestion(
+      segText,
+      segLower,
+      currentQuestion,
+      updates,
+      notes
+    );
   }
 
   if (
@@ -2098,10 +2094,6 @@ function formatFieldSummary(field, value, state) {
     return "phone captured";
   }
 
-  if (field === "propertyUse") {
-    return state?.meta?.propertyUse === "RENTAL" ? "rental property" : null;
-  }
-
   return null;
 }
 
@@ -2176,10 +2168,6 @@ function getQuestionPriorityScore(state, key) {
 
   if (lastQuestionField === key) {
     score -= 20;
-  }
-
-  if (key === "location") {
-    score += 0;
   }
 
   if (key === "postcode") {
