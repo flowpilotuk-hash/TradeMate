@@ -1,11 +1,98 @@
 const { prisma } = require("./db");
 const { getTradesmanById } = require("./tradesman-store");
 
-function generateLeadId() {
+type JsonObject = Record<string, unknown>;
+
+type TradesmanSummary = {
+  id: number | string;
+  tradesmanId?: string | null;
+  slug?: string | null;
+  businessName?: string | null;
+};
+
+type LeadRecord = {
+  leadId: string;
+  createdAt: Date;
+  status: string;
+  tradesmanId?: number | string | null;
+  tradeKind: string;
+  phase: string;
+  classificationJson?: JsonObject | null;
+  fieldsJson?: JsonObject | null;
+  metaJson?: JsonObject | null;
+  budgetJson?: JsonObject | null;
+  auditJson?: JsonObject | null;
+  conversationMessagesJson?: unknown;
+  approvedAt?: Date | null;
+  rejectedAt?: Date | null;
+  quotedAt?: Date | null;
+  quote?: unknown;
+  tradesman?: TradesmanSummary | null;
+};
+
+type LeadInput = {
+  createdAt?: string | Date | null;
+  status?: string;
+  tradesmanId?: string | null;
+  tradeKind?: string;
+  phase?: string;
+  classification?: JsonObject;
+  fields?: JsonObject;
+  meta?: JsonObject;
+  budget?: JsonObject;
+  audit?: JsonObject;
+  conversationMessages?: unknown[];
+  approvedAt?: string | Date | null;
+  rejectedAt?: string | Date | null;
+  quotedAt?: string | Date | null;
+  quote?: unknown;
+};
+
+type LeadUpdateInput = {
+  status?: string;
+  tradesmanId?: string | null;
+  tradeKind?: string;
+  phase?: string;
+  classification?: JsonObject;
+  fields?: JsonObject;
+  meta?: JsonObject;
+  budget?: JsonObject;
+  audit?: JsonObject;
+  conversationMessages?: unknown[];
+  approvedAt?: string | Date | null;
+  rejectedAt?: string | Date | null;
+  quotedAt?: string | Date | null;
+  quote?: unknown;
+};
+
+type LeadResponse = {
+  leadId: string;
+  createdAt: string;
+  status: string;
+  tradesmanId: string | null;
+  tradesmanSlug: string | null;
+  tradesmanBusinessName: string | null;
+  tradeKind: string;
+  phase: string;
+  classification: JsonObject | null | undefined;
+  fields: JsonObject | null | undefined;
+  meta: JsonObject | null | undefined;
+  budget: JsonObject | null | undefined;
+  audit: JsonObject | null | undefined;
+  conversationMessages: unknown[];
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  quotedAt: string | null;
+  quote: unknown;
+};
+
+function generateLeadId(): string {
   return `lead_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function mapLeadRecord(record) {
+function mapLeadRecord(
+  record: LeadRecord | null | undefined
+): LeadResponse | null {
   if (!record) {
     return null;
   }
@@ -34,7 +121,9 @@ function mapLeadRecord(record) {
   };
 }
 
-async function resolveInternalTradesmanId(publicTradesmanId) {
+async function resolveInternalTradesmanId(
+  publicTradesmanId: string | null | undefined
+): Promise<number | string | null> {
   if (!publicTradesmanId) {
     return null;
   }
@@ -43,8 +132,12 @@ async function resolveInternalTradesmanId(publicTradesmanId) {
   return tradesman?.id || null;
 }
 
-async function createLead(lead) {
-  const internalTradesmanId = await resolveInternalTradesmanId(lead?.tradesmanId);
+async function createLead(
+  lead: LeadInput | null | undefined
+): Promise<LeadResponse | null> {
+  const internalTradesmanId = await resolveInternalTradesmanId(
+    lead?.tradesmanId
+  );
 
   const created = await prisma.lead.create({
     data: {
@@ -75,7 +168,7 @@ async function createLead(lead) {
   return mapLeadRecord(created);
 }
 
-async function listLeads() {
+async function listLeads(): Promise<LeadResponse[]> {
   const leads = await prisma.lead.findMany({
     include: {
       tradesman: true,
@@ -85,10 +178,17 @@ async function listLeads() {
     },
   });
 
-  return leads.map(mapLeadRecord);
+  const mappedLeads: Array<LeadResponse | null> = leads.map(
+    (record: LeadRecord) => mapLeadRecord(record)
+  );
+
+  return mappedLeads.filter(
+    (mappedLead: LeadResponse | null): mappedLead is LeadResponse =>
+      mappedLead !== null
+  );
 }
 
-async function getLead(leadId) {
+async function getLead(leadId: string): Promise<LeadResponse | null> {
   const lead = await prisma.lead.findUnique({
     where: { leadId },
     include: {
@@ -99,7 +199,10 @@ async function getLead(leadId) {
   return mapLeadRecord(lead);
 }
 
-async function updateLead(leadId, updates) {
+async function updateLead(
+  leadId: string,
+  updates: LeadUpdateInput | null | undefined
+): Promise<LeadResponse | null> {
   const existing = await prisma.lead.findUnique({
     where: { leadId },
     include: {
@@ -157,8 +260,7 @@ async function updateLead(leadId, updates) {
             ? new Date(updates.quotedAt)
             : null
           : existing.quotedAt,
-      quote:
-        updates?.quote !== undefined ? updates.quote : existing.quote,
+      quote: updates?.quote !== undefined ? updates.quote : existing.quote,
     },
     include: {
       tradesman: true,
@@ -174,3 +276,5 @@ module.exports = {
   getLead,
   updateLead,
 };
+
+export {};

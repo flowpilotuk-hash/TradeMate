@@ -1,11 +1,73 @@
 const { prisma } = require("./db");
 const { getTradesmanById } = require("./tradesman-store");
 
-function generateConversationId() {
+type JsonObject = Record<string, unknown>;
+type ConversationMessage = unknown[];
+
+type ConversationState = {
+  version?: number | string;
+  tradeKind?: string;
+  phase?: string;
+  fields?: JsonObject;
+  meta?: JsonObject & {
+    tradesmanId?: string | null;
+  };
+  budget?: JsonObject;
+  classification?: JsonObject;
+  audit?: JsonObject;
+};
+
+type TradesmanSummary = {
+  id: number | string;
+  tradesmanId?: string | null;
+  slug?: string | null;
+  businessName?: string | null;
+};
+
+type ConversationRecord = {
+  conversationId: string;
+  version: number;
+  tradeKind: string;
+  phase: string;
+  fieldsJson?: JsonObject | null;
+  metaJson?: JsonObject | null;
+  budgetJson?: JsonObject | null;
+  classificationJson?: JsonObject | null;
+  auditJson?: JsonObject | null;
+  messagesJson?: unknown;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+  tradesmanId?: number | string | null;
+  tradesman?: TradesmanSummary | null;
+};
+
+type ConversationResponse = {
+  conversationId: string;
+  state: {
+    version: number;
+    tradeKind: string;
+    phase: string;
+    fields: JsonObject;
+    meta: JsonObject;
+    budget: JsonObject;
+    classification: JsonObject;
+    audit: JsonObject;
+  };
+  messages: unknown[];
+  createdAt: string | null;
+  updatedAt: string | null;
+  tradesmanId: string | null;
+  tradesmanSlug: string | null;
+  tradesmanBusinessName: string | null;
+};
+
+function generateConversationId(): string {
   return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function mapConversationRecord(record) {
+function mapConversationRecord(
+  record: ConversationRecord | null | undefined
+): ConversationResponse | null {
   if (!record) {
     return null;
   }
@@ -31,10 +93,10 @@ function mapConversationRecord(record) {
   };
 }
 
-async function resolveInternalTradesmanIdFromState(state) {
-  const publicTradesmanId =
-    state?.meta?.tradesmanId ||
-    null;
+async function resolveInternalTradesmanIdFromState(
+  state: ConversationState | null | undefined
+): Promise<number | string | null> {
+  const publicTradesmanId = state?.meta?.tradesmanId || null;
 
   if (!publicTradesmanId) {
     return null;
@@ -44,9 +106,12 @@ async function resolveInternalTradesmanIdFromState(state) {
   return tradesman?.id || null;
 }
 
-async function createConversation(initialState) {
+async function createConversation(
+  initialState: ConversationState | null | undefined
+): Promise<ConversationResponse | null> {
   const conversationId = generateConversationId();
-  const internalTradesmanId = await resolveInternalTradesmanIdFromState(initialState);
+  const internalTradesmanId =
+    await resolveInternalTradesmanIdFromState(initialState);
 
   const created = await prisma.conversation.create({
     data: {
@@ -70,7 +135,9 @@ async function createConversation(initialState) {
   return mapConversationRecord(created);
 }
 
-async function getConversation(conversationId) {
+async function getConversation(
+  conversationId: string
+): Promise<ConversationResponse | null> {
   const record = await prisma.conversation.findUnique({
     where: { conversationId },
     include: {
@@ -81,7 +148,11 @@ async function getConversation(conversationId) {
   return mapConversationRecord(record);
 }
 
-async function updateConversation(conversationId, state, messages) {
+async function updateConversation(
+  conversationId: string,
+  state: ConversationState | null | undefined,
+  messages: unknown[] | undefined
+): Promise<ConversationResponse | null> {
   const existing = await prisma.conversation.findUnique({
     where: { conversationId },
     include: {

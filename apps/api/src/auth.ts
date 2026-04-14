@@ -1,22 +1,34 @@
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const jwt: typeof import("jsonwebtoken") = require("jsonwebtoken");
+const bcrypt: typeof import("bcryptjs") = require("bcryptjs");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_this_before_production";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+import type { JwtPayload, SignOptions } from "jsonwebtoken";
 
-function hashPassword(password) {
+const JWT_SECRET: string =
+  process.env.JWT_SECRET || "dev_secret_change_this_before_production";
+
+const JWT_EXPIRES_IN: string =
+  process.env.JWT_EXPIRES_IN || "7d";
+
+type TokenPayload = string | Buffer | Record<string, unknown>;
+type VerifiedToken = string | JwtPayload | null;
+
+function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10);
 }
 
-function verifyPassword(password, hash) {
+function verifyPassword(password: string, hash: string): boolean {
   return bcrypt.compareSync(password, hash);
 }
 
-function createToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+function createToken(payload: TokenPayload): string {
+  const options: SignOptions = {
+    expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"],
+  };
+
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
-function verifyToken(token) {
+function verifyToken(token: string): VerifiedToken {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch {
