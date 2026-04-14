@@ -34,11 +34,14 @@ type ConversationResponse = {
       tradesmanId?: string | null;
       tradesmanSlug?: string | null;
       tradesmanBusinessName?: string | null;
+      quickSelects?: string[];
     };
   };
   messages?: { role: ChatRole; text: string }[];
   reply?: string | null;
   question?: string | null;
+  nextField?: string | null;
+  quickSelects?: string[];
   error?: string;
 };
 
@@ -62,6 +65,7 @@ export default function TradesmanChatPage() {
   const [createdLeadId, setCreatedLeadId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<string | undefined>(undefined);
+  const [quickSelects, setQuickSelects] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initRequestRef = useRef(0);
@@ -74,34 +78,20 @@ export default function TradesmanChatPage() {
     [slug]
   );
 
-  const quickReplies = useMemo(() => {
+  const visibleQuickReplies = useMemo(() => {
     if (leadCreated || starting || sending || leadCreating) {
       return [];
     }
 
-    switch (phase) {
-      case "COLLECTING":
-        return [
-          "Small",
-          "Medium",
-          "Large",
-          "Current layout",
-          "Minor changes",
-          "Supply and fit",
-        ];
-      case "AWAITING_CONTACT":
-        return [
-          "My name is John",
-          "john@example.com",
-          "ASAP",
-          "Next month",
-        ];
-      case "READY_FOR_HANDOFF":
-        return [];
-      default:
-        return ["Medium", "Current layout", "Supply and fit"];
+    if (!Array.isArray(quickSelects)) {
+      return [];
     }
-  }, [leadCreated, starting, sending, leadCreating, phase]);
+
+    return quickSelects
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 6);
+  }, [leadCreated, starting, sending, leadCreating, quickSelects]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -128,6 +118,7 @@ export default function TradesmanChatPage() {
       setMessages([]);
       setConversationId(null);
       setPhase(undefined);
+      setQuickSelects([]);
       setInput("");
       setTradesman(null);
 
@@ -187,6 +178,13 @@ export default function TradesmanChatPage() {
         if (conversationData.state?.phase) {
           setPhase(conversationData.state.phase);
         }
+
+        setQuickSelects(
+          normalizeQuickSelects(
+            conversationData.quickSelects,
+            conversationData.state?.meta?.quickSelects
+          )
+        );
 
         const initialMessages = normalizeConversationMessages(
           conversationData.messages,
@@ -256,6 +254,7 @@ export default function TradesmanChatPage() {
     };
 
     setMessages((current) => [...current, optimisticUserMessage]);
+    setQuickSelects([]);
 
     try {
       const response = await fetch(`${API_BASE}/conversation/message`, {
@@ -286,6 +285,10 @@ export default function TradesmanChatPage() {
       if (data.state?.phase) {
         setPhase(data.state.phase);
       }
+
+      setQuickSelects(
+        normalizeQuickSelects(data.quickSelects, data.state?.meta?.quickSelects)
+      );
 
       if (Array.isArray(data.messages) && data.messages.length > 0) {
         setMessages(normalizeConversationMessages(data.messages));
@@ -374,6 +377,7 @@ export default function TradesmanChatPage() {
 
       setLeadCreated(true);
       setCreatedLeadId(data.leadId);
+      setQuickSelects([]);
 
       setMessages((current) => [
         ...current,
@@ -565,8 +569,8 @@ export default function TradesmanChatPage() {
                     background: starting
                       ? "#9ca3af"
                       : phase === "READY_FOR_HANDOFF"
-                      ? "#16a34a"
-                      : "#2563eb",
+                        ? "#16a34a"
+                        : "#2563eb",
                     display: "inline-block",
                   }}
                 />
@@ -625,14 +629,14 @@ export default function TradesmanChatPage() {
                             background: isUser
                               ? "#111827"
                               : isSystem
-                              ? "#ecfdf5"
-                              : "#ffffff",
+                                ? "#ecfdf5"
+                                : "#ffffff",
                             color: isUser ? "#ffffff" : "#111827",
                             border: isUser
                               ? "1px solid #111827"
                               : isSystem
-                              ? "1px solid #a7f3d0"
-                              : "1px solid #e5e7eb",
+                                ? "1px solid #a7f3d0"
+                                : "1px solid #e5e7eb",
                             boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                           }}
                         >
@@ -706,7 +710,7 @@ export default function TradesmanChatPage() {
                 background: "#ffffff",
               }}
             >
-              {quickReplies.length > 0 && !showCreateLeadButton ? (
+              {visibleQuickReplies.length > 0 && !showCreateLeadButton ? (
                 <div
                   style={{
                     display: "flex",
@@ -715,7 +719,7 @@ export default function TradesmanChatPage() {
                     marginBottom: 14,
                   }}
                 >
-                  {quickReplies.map((reply) => (
+                  {visibleQuickReplies.map((reply) => (
                     <button
                       key={reply}
                       type="button"
@@ -1058,6 +1062,22 @@ function normalizeConversationMessages(
       text,
     },
   ];
+}
+
+function normalizeQuickSelects(
+  primary?: string[] | null,
+  fallback?: string[] | null
+) {
+  const source = Array.isArray(primary)
+    ? primary
+    : Array.isArray(fallback)
+      ? fallback
+      : [];
+
+  return source
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
 }
 
 function getProgressLabel(phase?: string) {
