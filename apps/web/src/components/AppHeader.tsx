@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 type AppHeaderProps = {
   currentPath?: string;
@@ -9,68 +12,114 @@ export default function AppHeader({
   currentPath,
   dashboardSlug,
 }: AppHeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const dashboardHref = dashboardSlug ? `/dashboard/${dashboardSlug}` : "/login";
   const demoHref = "/chat/leeds-kitchen-co";
 
-  return (
-    <header
-      style={{
-        maxWidth: 1180,
-        margin: "0 auto",
-        padding: "24px 24px 0 24px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 16,
-        flexWrap: "wrap",
-      }}
-    >
-      <Link
-        href="/"
-        style={{
-          textDecoration: "none",
-          color: "#111827",
-          fontWeight: 800,
-          fontSize: 22,
-        }}
-      >
-        TradeMate
-      </Link>
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [currentPath]);
 
-      <nav
-        style={{
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <NavLink href="/" currentPath={currentPath}>
-          Home
-        </NavLink>
-        <NavLink href="/signup" currentPath={currentPath}>
-          Sign up
-        </NavLink>
-        <NavLink href="/login" currentPath={currentPath}>
-          Login
-        </NavLink>
-        <NavLink href={dashboardHref} currentPath={currentPath}>
-          Dashboard
-        </NavLink>
+  const navItems = [
+    { href: "/", label: "Home" },
+    { href: "/signup", label: "Sign up" },
+    { href: "/login", label: "Login" },
+    { href: dashboardHref, label: "Dashboard" },
+  ];
+
+  return (
+    <header className="border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <Link
-          href={demoHref}
-          style={{
-            textDecoration: "none",
-            color: "#ffffff",
-            background: "#111827",
-            fontWeight: 700,
-            padding: "10px 14px",
-            borderRadius: 12,
-          }}
+          href="/"
+          className="shrink-0 text-xl font-extrabold tracking-tight text-gray-900 sm:text-2xl"
         >
-          Demo chat
+          TradeMate
         </Link>
-      </nav>
+
+        <div className="hidden items-center gap-2 md:flex">
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <NavLink
+                key={`${item.href}-${item.label}`}
+                href={item.href}
+                currentPath={currentPath}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <Link
+            href={demoHref}
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+          >
+            Demo chat
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 md:hidden"
+        >
+          <span className="sr-only">
+            {mobileMenuOpen ? "Close menu" : "Open menu"}
+          </span>
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {mobileMenuOpen ? (
+              <path d="M6 6l12 12M18 6L6 18" />
+            ) : (
+              <>
+                <path d="M4 7h16" />
+                <path d="M4 12h16" />
+                <path d="M4 17h16" />
+              </>
+            )}
+          </svg>
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div
+          id="mobile-navigation"
+          className="border-t border-gray-200 md:hidden"
+        >
+          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-2 px-4 py-3 sm:px-6">
+            <nav className="flex flex-col gap-2">
+              {navItems.map((item) => (
+                <MobileNavLink
+                  key={`${item.href}-${item.label}`}
+                  href={item.href}
+                  currentPath={currentPath}
+                >
+                  {item.label}
+                </MobileNavLink>
+              ))}
+            </nav>
+
+            <Link
+              href={demoHref}
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+            >
+              Demo chat
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -89,15 +138,40 @@ function NavLink({
   return (
     <Link
       href={href}
-      style={{
-        textDecoration: "none",
-        color: active ? "#111827" : "#374151",
-        background: active ? "#ffffff" : "transparent",
-        border: active ? "1px solid #e5e7eb" : "1px solid transparent",
-        fontWeight: 700,
-        padding: "10px 12px",
-        borderRadius: 12,
-      }}
+      className={[
+        "inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold transition",
+        active
+          ? "border border-gray-200 bg-gray-50 text-gray-900"
+          : "border border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+      ].join(" ")}
+      aria-current={active ? "page" : undefined}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function MobileNavLink({
+  href,
+  currentPath,
+  children,
+}: {
+  href: string;
+  currentPath?: string;
+  children: React.ReactNode;
+}) {
+  const active = currentPath === href;
+
+  return (
+    <Link
+      href={href}
+      className={[
+        "flex min-h-12 items-center rounded-xl px-4 text-sm font-semibold transition",
+        active
+          ? "border border-gray-200 bg-gray-50 text-gray-900"
+          : "border border-transparent text-gray-700 hover:bg-gray-50 hover:text-gray-900",
+      ].join(" ")}
+      aria-current={active ? "page" : undefined}
     >
       {children}
     </Link>

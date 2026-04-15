@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import AppHeader from "../../components/AppHeader";
 import { API_BASE } from "../../lib/config";
 
@@ -178,6 +178,8 @@ export default function TradesmanDashboardPage() {
     return counts;
   }, [leads]);
 
+  const leadSummary = selectedLead ? buildLeadSummary(selectedLead) : null;
+
   async function reloadLeads(
     preserveSelected = true,
     nextStatusFilter = statusFilter
@@ -302,297 +304,161 @@ export default function TradesmanDashboardPage() {
     }
   }
 
-  function getFieldValue(lead: Lead, key: string) {
-    return lead.fields?.[key]?.value ?? "—";
-  }
-
-  function renderField(label: string, value: unknown) {
-    return (
-      <div style={summaryCardStyle}>
-        <div style={summaryLabelStyle}>{label}</div>
-        <div style={summaryValueStyle}>{formatValue(value)}</div>
-      </div>
-    );
-  }
-
   async function handleLogout() {
     localStorage.removeItem("trademate_token");
     await router.push("/login");
   }
 
-  const leadSummary = selectedLead ? buildLeadSummary(selectedLead) : null;
+  function getFieldValue(lead: Lead, key: string) {
+    return lead.fields?.[key]?.value ?? "—";
+  }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        color: "#111827",
-        paddingBottom: 40,
-      }}
-    >
-      <AppHeader dashboardSlug={safeSlug} />
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <AppHeader currentPath={safeSlug ? `/dashboard/${safeSlug}` : undefined} dashboardSlug={safeSlug} />
 
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 24px 0 24px" }}>
-        <header
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#6b7280",
-                marginBottom: 8,
-              }}
-            >
-              TradeMate Dashboard
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs">
+                TradeMate Dashboard
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                {tradesman?.businessName || "Tradesman Dashboard"}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                Review incoming leads, check project details, and take action quickly while you&apos;re on the move.
+              </p>
             </div>
-            <h1 style={{ margin: 0, fontSize: 32, lineHeight: 1.1 }}>
-              {tradesman?.businessName || "Tradesman Dashboard"}
-            </h1>
-            <p style={{ margin: "10px 0 0 0", color: "#6b7280", fontSize: 15 }}>
-              Review and manage leads for your business.
-            </p>
-          </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            {tradesman ? (
-              <Link
-                href={`/chat/${tradesman.slug}`}
-                style={{
-                  textDecoration: "none",
-                  color: "#111827",
-                  background: "#ffffff",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 12,
-                  padding: "10px 14px",
-                  fontWeight: 700,
-                }}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-end">
+              {tradesman ? (
+                <Link
+                  href={`/chat/${tradesman.slug}`}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                >
+                  Open customer link
+                </Link>
+              ) : null}
+
+              <button
+                onClick={() => void reloadLeads(true)}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={loading}
               >
-                Open customer link
-              </Link>
-            ) : null}
-            <button
-              onClick={() => void reloadLeads(true)}
-              style={{
-                border: "1px solid #d1d5db",
-                background: "#ffffff",
-                borderRadius: 12,
-                padding: "10px 14px",
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
-            <button
-              onClick={() => void handleLogout()}
-              style={{
-                border: "1px solid #d1d5db",
-                background: "#ffffff",
-                borderRadius: 12,
-                padding: "10px 14px",
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              Log out
-            </button>
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
+
+              <button
+                onClick={() => void handleLogout()}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+              >
+                Log out
+              </button>
+            </div>
           </div>
-        </header>
+        </section>
 
         {error ? (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: 14,
-              borderRadius: 12,
-              background: "#fef2f2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
-            }}
-          >
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
           </div>
         ) : null}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "380px minmax(0, 1fr)",
-            gap: 18,
-            alignItems: "start",
-          }}
-        >
-          <aside
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 18,
-              padding: 14,
-              boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 14,
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: 18 }}>Inbox</h2>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: "#6b7280",
-                  background: "#f3f4f6",
-                  borderRadius: 999,
-                  padding: "6px 10px",
-                }}
-              >
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Inbox</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Review and triage incoming leads.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
                 {loading ? "Loading..." : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
               </span>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                marginBottom: 14,
-              }}
-            >
-              {STATUS_TABS.map((tab) => {
-                const active = statusFilter === tab.key;
-                const count = statusCounts[tab.key] ?? 0;
+            <div className="-mx-1 mb-4 overflow-x-auto pb-1">
+              <div className="flex min-w-max gap-2 px-1">
+                {STATUS_TABS.map((tab) => {
+                  const active = statusFilter === tab.key;
+                  const count = statusCounts[tab.key] ?? 0;
 
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => {
-                      setStatusFilter(tab.key);
-                      setSelectedLeadId(null);
-                    }}
-                    style={{
-                      border: active ? "1px solid #111827" : "1px solid #d1d5db",
-                      background: active ? "#111827" : "#ffffff",
-                      color: active ? "#ffffff" : "#111827",
-                      borderRadius: 999,
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <span>{tab.label}</span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        opacity: active ? 0.9 : 0.7,
+                  return (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setStatusFilter(tab.key);
+                        setSelectedLeadId(null);
                       }}
+                      className={[
+                        "inline-flex h-10 items-center gap-2 rounded-full border px-3 text-xs font-semibold transition whitespace-nowrap",
+                        active
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+                      ].join(" ")}
                     >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>{tab.label}</span>
+                      <span className={active ? "text-white/80" : "text-slate-500"}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {loading ? (
-              <div style={emptyStateStyle}>Loading leads…</div>
+              <EmptyState>Loading leads…</EmptyState>
             ) : leads.length === 0 ? (
-              <div style={emptyStateStyle}>No leads in this view.</div>
+              <EmptyState>No leads in this view.</EmptyState>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
+              <div className="space-y-3">
                 {leads.map((lead) => {
                   const isSelected = lead.leadId === selectedLeadId;
+
                   return (
                     <button
                       key={lead.leadId}
                       onClick={() => setSelectedLeadId(lead.leadId)}
-                      style={{
-                        textAlign: "left",
-                        border: isSelected ? "2px solid #111827" : "1px solid #e5e7eb",
-                        background: isSelected ? "#f9fafb" : "#ffffff",
-                        borderRadius: 14,
-                        padding: 14,
-                        cursor: "pointer",
-                        boxShadow: isSelected
-                          ? "0 6px 20px rgba(17,24,39,0.08)"
-                          : "0 1px 2px rgba(0,0,0,0.04)",
-                      }}
+                      className={[
+                        "block w-full rounded-2xl border p-4 text-left transition",
+                        isSelected
+                          ? "border-slate-900 bg-slate-50 shadow-sm"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50",
+                      ].join(" ")}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 8,
-                          alignItems: "center",
-                          marginBottom: 8,
-                        }}
-                      >
-                        <div style={{ fontWeight: 700, fontSize: 16 }}>
-                          {humanizeEnum(lead.tradeKind) || "Unknown trade"}
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-base font-semibold text-slate-900">
+                            {humanizeEnum(lead.tradeKind) || "Unknown trade"}
+                          </div>
+                          <div className="mt-1 truncate text-xs text-slate-500">
+                            {lead.leadId}
+                          </div>
                         </div>
                         <StatusBadge status={lead.status || "NEW"} />
                       </div>
 
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#6b7280",
-                          marginBottom: 10,
-                          wordBreak: "break-all",
-                        }}
-                      >
-                        {lead.leadId}
-                      </div>
-
-                      <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Customer</span>
-                        <span style={cardMetaValueStyle}>
-                          {String(getFieldValue(lead, "firstName"))}
-                        </span>
-                      </div>
-                      <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Postcode</span>
-                        <span style={cardMetaValueStyle}>
-                          {formatValue(getFieldValue(lead, "postcode"))}
-                        </span>
-                      </div>
-                      <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Timeline</span>
-                        <span style={cardMetaValueStyle}>
-                          {formatValue(getFieldValue(lead, "timeline"))}
-                        </span>
-                      </div>
-                      <div style={cardMetaRowStyle}>
-                        <span style={cardMetaLabelStyle}>Created</span>
-                        <span style={cardMetaValueStyle}>
-                          {formatDateTime(lead.createdAt)}
-                        </span>
+                      <div className="grid grid-cols-1 gap-2">
+                        <LeadMetaRow
+                          label="Customer"
+                          value={String(getFieldValue(lead, "firstName"))}
+                        />
+                        <LeadMetaRow
+                          label="Postcode"
+                          value={formatValue(getFieldValue(lead, "postcode"))}
+                        />
+                        <LeadMetaRow
+                          label="Timeline"
+                          value={formatValue(getFieldValue(lead, "timeline"))}
+                        />
+                        <LeadMetaRow
+                          label="Created"
+                          value={formatDateTime(lead.createdAt)}
+                        />
                       </div>
                     </button>
                   );
@@ -601,142 +467,121 @@ export default function TradesmanDashboardPage() {
             )}
           </aside>
 
-          <section
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 18,
-              padding: 20,
-              minHeight: 520,
-              boxShadow: "0 10px 30px rgba(15,23,42,0.06)",
-            }}
-          >
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:min-h-[620px] lg:p-6">
             {!selectedLead ? (
-              <div style={emptyStateStyle}>Select a lead to view its details.</div>
+              <EmptyState>Select a lead to view its details.</EmptyState>
             ) : (
-              <>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 16,
-                    marginBottom: 18,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <h2 style={{ margin: 0, fontSize: 28 }}>
-                        {humanizeEnum(selectedLead.tradeKind) || "Lead detail"}
-                      </h2>
-                      <StatusBadge status={selectedLead.status || "NEW"} />
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[28px]">
+                          {humanizeEnum(selectedLead.tradeKind) || "Lead detail"}
+                        </h2>
+                        <StatusBadge status={selectedLead.status || "NEW"} />
+                      </div>
+                      <div className="break-all text-sm text-slate-500">
+                        {selectedLead.leadId}
+                      </div>
                     </div>
-                    <div style={{ color: "#6b7280", fontSize: 14, wordBreak: "break-all" }}>
-                      {selectedLead.leadId}
+
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[360px]">
+                      <ActionButton
+                        onClick={() => void runLeadAction("approve", selectedLead.leadId)}
+                        disabled={actionLoading !== null}
+                        variant="success"
+                      >
+                        {actionLoading === "approve" ? "Approving..." : "Approve"}
+                      </ActionButton>
+
+                      <ActionButton
+                        onClick={() => void runLeadAction("reject", selectedLead.leadId)}
+                        disabled={actionLoading !== null}
+                        variant="danger"
+                      >
+                        {actionLoading === "reject" ? "Rejecting..." : "Reject"}
+                      </ActionButton>
+
+                      <ActionButton
+                        onClick={() => void runLeadAction("quote", selectedLead.leadId)}
+                        disabled={actionLoading !== null}
+                        variant="primary"
+                      >
+                        {actionLoading === "quote" ? "Quoting..." : "Quote"}
+                      </ActionButton>
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => void runLeadAction("approve", selectedLead.leadId)}
-                      disabled={actionLoading !== null}
-                      style={actionButtonStyle("#16a34a", "#f0fdf4")}
-                    >
-                      {actionLoading === "approve" ? "Approving..." : "Approve"}
-                    </button>
-                    <button
-                      onClick={() => void runLeadAction("reject", selectedLead.leadId)}
-                      disabled={actionLoading !== null}
-                      style={actionButtonStyle("#dc2626", "#fef2f2")}
-                    >
-                      {actionLoading === "reject" ? "Rejecting..." : "Reject"}
-                    </button>
-                    <button
-                      onClick={() => void runLeadAction("quote", selectedLead.leadId)}
-                      disabled={actionLoading !== null}
-                      style={actionButtonStyle("#2563eb", "#eff6ff")}
-                    >
-                      {actionLoading === "quote" ? "Quoting..." : "Quote"}
-                    </button>
-                  </div>
+                  {leadSummary ? (
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                        Lead summary
+                      </div>
+                      <p className="text-sm leading-7 text-slate-700 sm:text-[15px]">
+                        {leadSummary}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
 
-                {leadSummary ? (
-                  <div
-                    style={{
-                      marginBottom: 20,
-                      background: "#f8fafc",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 14,
-                      padding: 16,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#6b7280",
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        marginBottom: 8,
-                      }}
-                    >
-                      Lead summary
-                    </div>
-                    <div style={{ fontSize: 15, lineHeight: 1.7, color: "#111827" }}>
-                      {leadSummary}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                    gap: 12,
-                    marginBottom: 20,
-                  }}
-                >
-                  {renderField("Phase", humanizeEnum(selectedLead.phase || "—"))}
-                  {renderField("Status", humanizeEnum(selectedLead.status || "NEW"))}
-                  {renderField("Postcode", getFieldValue(selectedLead, "postcode"))}
-                  {renderField("Email", getFieldValue(selectedLead, "email"))}
-                  {renderField("Phone", getFieldValue(selectedLead, "phone"))}
-                  {renderField("Quote", selectedLead.quote || "—")}
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                  <SummaryCard
+                    label="Phase"
+                    value={humanizeEnum(selectedLead.phase || "—")}
+                  />
+                  <SummaryCard
+                    label="Status"
+                    value={humanizeEnum(selectedLead.status || "NEW")}
+                  />
+                  <SummaryCard
+                    label="Postcode"
+                    value={getFieldValue(selectedLead, "postcode")}
+                  />
+                  <SummaryCard
+                    label="Email"
+                    value={getFieldValue(selectedLead, "email")}
+                  />
+                  <SummaryCard
+                    label="Phone"
+                    value={getFieldValue(selectedLead, "phone")}
+                  />
+                  <SummaryCard
+                    label="Quote"
+                    value={selectedLead.quote || "—"}
+                  />
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 16,
-                    marginBottom: 20,
-                  }}
-                >
-                  <div style={panelCardStyle}>
-                    <h3 style={panelTitleStyle}>Project details</h3>
-                    <DetailRow label="Job type" value={humanizeEnum(getFieldValue(selectedLead, "jobType"))} />
-                    <DetailRow label="Kitchen size" value={humanizeEnum(getFieldValue(selectedLead, "kitchenSize"))} />
-                    <DetailRow label="Layout change" value={humanizeEnum(getFieldValue(selectedLead, "layoutChange"))} />
-                    <DetailRow label="Units supply" value={humanizeEnum(getFieldValue(selectedLead, "unitsSupply"))} />
-                    <DetailRow label="Timeline" value={humanizeEnum(getFieldValue(selectedLead, "timeline"))} />
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <PanelCard title="Project details">
+                    <DetailRow
+                      label="Job type"
+                      value={humanizeEnum(getFieldValue(selectedLead, "jobType"))}
+                    />
+                    <DetailRow
+                      label="Kitchen size"
+                      value={humanizeEnum(getFieldValue(selectedLead, "kitchenSize"))}
+                    />
+                    <DetailRow
+                      label="Layout change"
+                      value={humanizeEnum(getFieldValue(selectedLead, "layoutChange"))}
+                    />
+                    <DetailRow
+                      label="Units supply"
+                      value={humanizeEnum(getFieldValue(selectedLead, "unitsSupply"))}
+                    />
+                    <DetailRow
+                      label="Timeline"
+                      value={humanizeEnum(getFieldValue(selectedLead, "timeline"))}
+                    />
                     <DetailRow
                       label="Budget disclosure"
                       value={humanizeEnum((selectedLead.budget as any)?.disclosure || "—")}
+                      last
                     />
-                  </div>
+                  </PanelCard>
 
-                  <div style={panelCardStyle}>
-                    <h3 style={panelTitleStyle}>Timeline & activity</h3>
+                  <PanelCard title="Timeline & activity">
                     <DetailRow label="Created" value={formatDateTime(selectedLead.createdAt)} />
                     <DetailRow label="Approved" value={formatDateTime(selectedLead.approvedAt)} />
                     <DetailRow label="Rejected" value={formatDateTime(selectedLead.rejectedAt)} />
@@ -748,15 +593,14 @@ export default function TradesmanDashboardPage() {
                     <DetailRow
                       label="Turn count"
                       value={(selectedLead.audit as any)?.turnCount ?? "—"}
+                      last
                     />
-                  </div>
+                  </PanelCard>
                 </div>
 
-                <div style={panelCardStyle}>
-                  <h3 style={panelTitleStyle}>Conversation transcript</h3>
-
+                <PanelCard title="Conversation transcript">
                   {selectedLead.conversationMessages?.length ? (
-                    <div style={{ display: "grid", gap: 10 }}>
+                    <div className="space-y-3">
                       {selectedLead.conversationMessages.map((message, index) => {
                         const isUser = message.role === "user";
                         const isSystem = message.role === "system";
@@ -764,96 +608,54 @@ export default function TradesmanDashboardPage() {
                         return (
                           <div
                             key={`${message.role}-${index}`}
-                            style={{
-                              padding: 12,
-                              borderRadius: 12,
-                              background: isUser
-                                ? "#eef2ff"
+                            className={[
+                              "rounded-xl border p-4",
+                              isUser
+                                ? "border-indigo-200 bg-indigo-50"
                                 : isSystem
-                                ? "#ecfdf5"
-                                : "#f9fafb",
-                              border: isUser
-                                ? "1px solid #c7d2fe"
-                                : isSystem
-                                ? "1px solid #a7f3d0"
-                                : "1px solid #e5e7eb",
-                            }}
+                                ? "border-emerald-200 bg-emerald-50"
+                                : "border-slate-200 bg-slate-50",
+                            ].join(" ")}
                           >
-                            <div
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.04em",
-                                color: "#6b7280",
-                                marginBottom: 6,
-                              }}
-                            >
+                            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                               {isUser ? "Customer" : isSystem ? "System" : "Bot"}
                             </div>
-                            <div style={{ lineHeight: 1.6 }}>{message.text}</div>
+                            <div className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                              {message.text}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <p style={{ margin: 0, color: "#6b7280" }}>
+                    <p className="text-sm text-slate-500">
                       No transcript available for this lead yet.
                     </p>
                   )}
-                </div>
+                </PanelCard>
 
-                <div style={{ height: 20 }} />
-
-                <div style={panelCardStyle}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 12,
-                      flexWrap: "wrap",
-                      marginBottom: 12,
-                    }}
-                  >
-                    <h3 style={panelTitleStyle}>Technical detail</h3>
+                <PanelCard
+                  title="Technical detail"
+                  action={
                     <button
                       onClick={() => setShowJson((current) => !current)}
-                      style={{
-                        border: "1px solid #d1d5db",
-                        background: "#fff",
-                        borderRadius: 10,
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                      }}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       {showJson ? "Hide raw JSON" : "Show raw JSON"}
                     </button>
-                  </div>
-
+                  }
+                >
                   {showJson ? (
-                    <pre
-                      style={{
-                        background: "#0f172a",
-                        color: "#e5e7eb",
-                        padding: 16,
-                        borderRadius: 12,
-                        overflowX: "auto",
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        margin: 0,
-                      }}
-                    >
+                    <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs leading-6 text-slate-200 sm:text-[13px]">
                       {JSON.stringify(selectedLead, null, 2)}
                     </pre>
                   ) : (
-                    <p style={{ margin: 0, color: "#6b7280" }}>
+                    <p className="text-sm text-slate-500">
                       Expand this section to inspect the full raw payload for debugging or support.
                     </p>
                   )}
-                </div>
-              </>
+                </PanelCard>
+              </div>
             )}
           </section>
         </div>
@@ -863,54 +665,138 @@ export default function TradesmanDashboardPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; text: string; border: string }> = {
-    NEW: { bg: "#f3f4f6", text: "#374151", border: "#d1d5db" },
-    APPROVED: { bg: "#ecfdf5", text: "#166534", border: "#86efac" },
-    REJECTED: { bg: "#fef2f2", text: "#991b1b", border: "#fca5a5" },
-    QUOTED: { bg: "#eff6ff", text: "#1d4ed8", border: "#93c5fd" },
+  const map: Record<string, string> = {
+    NEW: "border-slate-300 bg-slate-100 text-slate-700",
+    APPROVED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    REJECTED: "border-red-200 bg-red-50 text-red-700",
+    QUOTED: "border-blue-200 bg-blue-50 text-blue-700",
   };
 
-  const style = map[status] || {
-    bg: "#f3f4f6",
-    text: "#111827",
-    border: "#d1d5db",
-  };
+  const className =
+    map[status] || "border-slate-300 bg-slate-100 text-slate-700";
 
   return (
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        borderRadius: 999,
-        padding: "6px 10px",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "0.02em",
-        background: style.bg,
-        color: style.text,
-        border: `1px solid ${style.border}`,
-      }}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ${className}`}
     >
       {humanizeEnum(status)}
     </span>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: unknown }) {
+function ActionButton({
+  children,
+  onClick,
+  disabled,
+  variant,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant: "success" | "danger" | "primary";
+}) {
+  const variants: Record<string, string> = {
+    success:
+      "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100",
+    danger: "border-red-300 bg-red-50 text-red-800 hover:bg-red-100",
+    primary: "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100",
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: "10px 0",
-        borderBottom: "1px solid #f3f4f6",
-      }}
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]}`}
     >
-      <span style={{ color: "#6b7280" }}>{label}</span>
-      <span style={{ fontWeight: 600, textAlign: "right" }}>
+      {children}
+    </button>
+  );
+}
+
+function PanelCard({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+        {action ? <div>{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </div>
+      <div className="break-words text-sm font-semibold text-slate-900 sm:text-[15px]">
+        {formatValue(value)}
+      </div>
+    </div>
+  );
+}
+
+function LeadMetaRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-sm">
+      <span className="shrink-0 text-slate-500">{label}</span>
+      <span className="min-w-0 break-words text-right font-medium text-slate-900">
         {formatValue(value)}
       </span>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  last = false,
+}: {
+  label: string;
+  value: unknown;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "flex items-start justify-between gap-4 py-3",
+        last ? "" : "border-b border-slate-200",
+      ].join(" ")}
+    >
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="max-w-[60%] break-words text-right text-sm font-semibold text-slate-900">
+        {formatValue(value)}
+      </span>
+    </div>
+  );
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+      {children}
     </div>
   );
 }
@@ -980,7 +866,9 @@ function buildLeadSummary(lead: Lead) {
     "";
 
   const parts = [
-    firstName ? `${firstName} is enquiring about ${jobType.toLowerCase()}` : `Customer is enquiring about ${jobType.toLowerCase()}`,
+    firstName
+      ? `${firstName} is enquiring about ${jobType.toLowerCase()}`
+      : `Customer is enquiring about ${jobType.toLowerCase()}`,
     postcode ? `in ${postcode}` : "",
     kitchenSize && kitchenSize !== "—" ? `for a ${kitchenSize.toLowerCase()} kitchen` : "",
     layoutChange && layoutChange !== "—" ? `with ${layoutChange.toLowerCase()} planned` : "",
@@ -992,83 +880,4 @@ function buildLeadSummary(lead: Lead) {
     .join(" ");
 
   return parts || null;
-}
-
-const emptyStateStyle: React.CSSProperties = {
-  padding: 24,
-  borderRadius: 14,
-  background: "#f9fafb",
-  color: "#6b7280",
-  textAlign: "center",
-  border: "1px dashed #d1d5db",
-};
-
-const cardMetaRowStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 10,
-  marginBottom: 4,
-};
-
-const cardMetaLabelStyle: React.CSSProperties = {
-  color: "#6b7280",
-  fontSize: 13,
-};
-
-const cardMetaValueStyle: React.CSSProperties = {
-  color: "#111827",
-  fontSize: 13,
-  fontWeight: 600,
-  textAlign: "right",
-  maxWidth: 180,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-const panelCardStyle: React.CSSProperties = {
-  background: "#f9fafb",
-  border: "1px solid #eceff3",
-  borderRadius: 14,
-  padding: 16,
-};
-
-const panelTitleStyle: React.CSSProperties = {
-  margin: "0 0 12px 0",
-  fontSize: 16,
-};
-
-const summaryCardStyle: React.CSSProperties = {
-  background: "#f9fafb",
-  border: "1px solid #eceff3",
-  borderRadius: 14,
-  padding: 14,
-};
-
-const summaryLabelStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: "#6b7280",
-  marginBottom: 6,
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-  fontWeight: 700,
-};
-
-const summaryValueStyle: React.CSSProperties = {
-  fontSize: 15,
-  fontWeight: 700,
-  color: "#111827",
-};
-
-function actionButtonStyle(borderColor: string, background: string) {
-  return {
-    border: `1px solid ${borderColor}`,
-    background,
-    borderRadius: 10,
-    padding: "10px 14px",
-    cursor: "pointer",
-    fontWeight: 700,
-    color: "#111827",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-  } as const;
 }
