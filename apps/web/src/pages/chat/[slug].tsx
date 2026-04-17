@@ -414,543 +414,228 @@ export default function TradesmanChatPage() {
   const helperCopy = getHelperCopy(phase);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        color: "#111827",
-        paddingBottom: 40,
-      }}
-    >
+    <main className="min-h-screen bg-slate-50 text-slate-900">
       <AppHeader dashboardSlug={safeSlug ?? undefined} />
 
-      <div
-        style={{
-          maxWidth: 980,
-          margin: "0 auto",
-          padding: "28px 24px 0 24px",
-        }}
-      >
-        <header
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#6b7280",
-                marginBottom: 8,
-              }}
-            >
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-6 lg:px-8 lg:pb-10">
+        <div className="mb-4 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between lg:p-6">
+          <div className="min-w-0">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs">
               {tradesman?.businessName || "TradeMate"}
             </div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 34,
-                lineHeight: 1.08,
-              }}
-            >
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Request a Quote
             </h1>
-            <p
-              style={{
-                margin: "10px 0 0 0",
-                color: "#6b7280",
-                fontSize: 16,
-                lineHeight: 1.6,
-                maxWidth: 700,
-              }}
-            >
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-[15px]">
               Tell us about your job and we&apos;ll qualify your enquiry for{" "}
               <strong>{tradesman?.businessName || "this business"}</strong>.
             </p>
           </div>
 
           {tradesman ? (
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 16,
-                padding: 14,
-                minWidth: 240,
-                boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
-              }}
-            >
-              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 lg:min-w-[240px]">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                 Enquiry link
               </div>
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: 14,
-                  wordBreak: "break-word",
-                }}
-              >
+              <div className="break-words font-semibold text-slate-900">
                 {`/chat/${tradesman.slug}`}
               </div>
             </div>
           ) : null}
-        </header>
+        </div>
 
         {error ? (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: 14,
-              borderRadius: 12,
-              background: "#fef2f2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
-              whiteSpace: "pre-wrap",
-            }}
-          >
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-700 whitespace-pre-wrap">
             {error}
           </div>
         ) : null}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) 280px",
-            gap: 18,
-            alignItems: "start",
-          }}
-        >
-          <section
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 22,
-              boxShadow: "0 16px 40px rgba(15,23,42,0.07)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "16px 18px",
-                borderBottom: "1px solid #f3f4f6",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ fontWeight: 800 }}>
-                {tradesman?.businessName || "Customer Chat"}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
+          <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.07)]">
+            <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="truncate text-base font-semibold text-slate-900 sm:text-lg">
+                    {tradesman?.businessName || "Customer Chat"}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {progressLabel}
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                  <span
+                    className={[
+                      "inline-block h-2.5 w-2.5 rounded-full",
+                      starting
+                        ? "bg-slate-400"
+                        : phase === "READY_FOR_HANDOFF"
+                        ? "bg-emerald-500"
+                        : "bg-blue-500",
+                    ].join(" ")}
+                  />
+                  {starting ? "Starting conversation..." : progressLabel}
+                </div>
               </div>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                  color: "#6b7280",
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    background: starting
-                      ? "#9ca3af"
-                      : phase === "READY_FOR_HANDOFF"
-                        ? "#16a34a"
-                        : "#2563eb",
-                    display: "inline-block",
-                  }}
-                />
-                {starting ? "Starting conversation..." : progressLabel}
+
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                {helperCopy}
               </div>
             </div>
 
-            <div
-              style={{
-                padding: "12px 18px",
-                borderBottom: "1px solid #f3f4f6",
-                background: "#fcfcfd",
-                color: "#6b7280",
-                fontSize: 14,
-                lineHeight: 1.5,
-              }}
-            >
-              {helperCopy}
-            </div>
+            <div className="flex flex-col lg:h-[calc(100vh-270px)]">
+              <div className="min-h-[340px] flex-1 overflow-y-auto bg-slate-50 px-4 py-4 sm:px-5 sm:py-5">
+                {starting ? (
+                  <InfoBubble text="Starting conversation…" />
+                ) : messages.length === 0 ? (
+                  <InfoBubble text="No messages yet." />
+                ) : (
+                  <div className="space-y-3">
+                    {messages.map((message) => {
+                      const isUser = message.role === "user";
+                      const isSystem = message.role === "system";
 
-            <div
-              style={{
-                height: 520,
-                overflowY: "auto",
-                padding: 18,
-                background: "#fafafa",
-              }}
-            >
-              {starting ? (
-                <InfoBubble text="Starting conversation…" />
-              ) : messages.length === 0 ? (
-                <InfoBubble text="No messages yet." />
-              ) : (
-                <>
-                  {messages.map((message) => {
-                    const isUser = message.role === "user";
-                    const isSystem = message.role === "system";
-
-                    return (
-                      <div
-                        key={message.id}
-                        style={{
-                          display: "flex",
-                          justifyContent: isUser ? "flex-end" : "flex-start",
-                          marginBottom: 12,
-                        }}
-                      >
+                      return (
                         <div
-                          style={{
-                            maxWidth: "78%",
-                            padding: "12px 14px",
-                            borderRadius: 18,
-                            lineHeight: 1.5,
-                            fontSize: 15,
-                            whiteSpace: "pre-wrap",
-                            background: isUser
-                              ? "#111827"
-                              : isSystem
-                                ? "#ecfdf5"
-                                : "#ffffff",
-                            color: isUser ? "#ffffff" : "#111827",
-                            border: isUser
-                              ? "1px solid #111827"
-                              : isSystem
-                                ? "1px solid #a7f3d0"
-                                : "1px solid #e5e7eb",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                          }}
+                          key={message.id}
+                          className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                         >
-                          {message.text}
+                          <div
+                            className={[
+                              "max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-6 shadow-sm sm:max-w-[78%]",
+                              isUser
+                                ? "border border-slate-900 bg-slate-900 text-white"
+                                : isSystem
+                                ? "border border-emerald-200 bg-emerald-50 text-slate-900"
+                                : "border border-slate-200 bg-white text-slate-900",
+                            ].join(" ")}
+                          >
+                            {message.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {sending ? (
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-6 text-slate-500 shadow-sm sm:max-w-[78%]">
+                          Typing…
                         </div>
                       </div>
-                    );
-                  })}
+                    ) : null}
 
-                  {sending ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-start",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          maxWidth: "78%",
-                          padding: "12px 14px",
-                          borderRadius: 18,
-                          lineHeight: 1.5,
-                          fontSize: 15,
-                          background: "#ffffff",
-                          color: "#6b7280",
-                          border: "1px solid #e5e7eb",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                        }}
-                      >
-                        Typing…
+                    {leadCreating ? (
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-6 text-slate-500 shadow-sm sm:max-w-[78%]">
+                          Submitting your enquiry…
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
+                    ) : null}
 
-                  {leadCreating ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-start",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          maxWidth: "78%",
-                          padding: "12px 14px",
-                          borderRadius: 18,
-                          lineHeight: 1.5,
-                          fontSize: 15,
-                          background: "#ffffff",
-                          color: "#6b7280",
-                          border: "1px solid #e5e7eb",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                        }}
-                      >
-                        Submitting your enquiry…
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
-
-            <div
-              style={{
-                borderTop: "1px solid #f3f4f6",
-                padding: 16,
-                background: "#ffffff",
-              }}
-            >
-              {visibleQuickReplies.length > 0 && !showCreateLeadButton ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    marginBottom: 14,
-                  }}
-                >
-                  {visibleQuickReplies.map((reply) => (
-                    <button
-                      key={reply}
-                      type="button"
-                      onClick={() => void handleQuickReply(reply)}
-                      disabled={starting || sending || leadCreated || leadCreating}
-                      style={{
-                        border: "1px solid #d1d5db",
-                        background: "#ffffff",
-                        color: "#111827",
-                        borderRadius: 999,
-                        padding: "8px 12px",
-                        cursor:
-                          starting || sending || leadCreated || leadCreating
-                            ? "not-allowed"
-                            : "pointer",
-                        fontWeight: 600,
-                        fontSize: 13,
-                      }}
-                    >
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {showCreateLeadButton ? (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    marginBottom: 14,
-                    flexWrap: "wrap",
-                    padding: 14,
-                    borderRadius: 14,
-                    background: "#f8fafc",
-                    border: "1px solid #e5e7eb",
-                  }}
-                >
-                  <div style={{ color: "#374151", fontSize: 14 }}>
-                    {phase === "READY_FOR_HANDOFF"
-                      ? "Everything looks ready. Submit this enquiry to the tradesman."
-                      : "You’re almost there. If the details look right, submit this enquiry now."}
+                    <div ref={messagesEndRef} />
                   </div>
+                )}
+              </div>
 
-                  {!leadCreated ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleCreateLead()}
-                      disabled={leadCreating || sending}
-                      style={{
-                        border: "1px solid #2563eb",
-                        background:
-                          leadCreating || sending ? "#93c5fd" : "#2563eb",
-                        color: "#ffffff",
-                        borderRadius: 10,
-                        padding: "10px 14px",
-                        cursor:
-                          leadCreating || sending ? "not-allowed" : "pointer",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {leadCreating ? "Submitting..." : "Submit enquiry"}
-                    </button>
-                  ) : (
-                    <Link
-                      href={`/dashboard/${tradesman?.slug || safeSlug || ""}`}
-                      style={{
-                        color: "#2563eb",
-                        fontWeight: 700,
-                        textDecoration: "none",
-                      }}
-                    >
-                      {createdLeadId ? "Open dashboard" : "Back to dashboard"}
-                    </Link>
-                  )}
-                </div>
-              ) : null}
+              <div className="border-t border-slate-200 bg-white px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+                {visibleQuickReplies.length > 0 && !showCreateLeadButton ? (
+                  <div className="-mx-1 mb-3 overflow-x-auto pb-1">
+                    <div className="flex min-w-max gap-2 px-1">
+                      {visibleQuickReplies.map((reply) => (
+                        <button
+                          key={reply}
+                          type="button"
+                          onClick={() => void handleQuickReply(reply)}
+                          disabled={starting || sending || leadCreated || leadCreating}
+                          className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {reply}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
-              <form
-                onSubmit={handleSend}
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Type your message…"
-                  disabled={starting || sending || leadCreated || leadCreating}
-                  style={{
-                    flex: 1,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 14,
-                    padding: "13px 14px",
-                    fontSize: 15,
-                    outline: "none",
-                    background: leadCreated ? "#f9fafb" : "#ffffff",
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={
-                    starting ||
-                    sending ||
-                    !input.trim() ||
-                    leadCreated ||
-                    leadCreating
-                  }
-                  style={{
-                    border: "1px solid #111827",
-                    background:
-                      starting ||
-                      sending ||
-                      !input.trim() ||
-                      leadCreated ||
-                      leadCreating
-                        ? "#9ca3af"
-                        : "#111827",
-                    color: "#ffffff",
-                    borderRadius: 14,
-                    padding: "13px 16px",
-                    fontWeight: 700,
-                    cursor:
-                      starting ||
-                      sending ||
-                      !input.trim() ||
-                      leadCreated ||
-                      leadCreating
-                        ? "not-allowed"
-                        : "pointer",
-                    minWidth: 94,
-                  }}
+                {showCreateLeadButton ? (
+                  <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm leading-6 text-slate-700">
+                        {phase === "READY_FOR_HANDOFF"
+                          ? "Everything looks ready. Submit this enquiry to the tradesman."
+                          : "You’re almost there. If the details look right, submit this enquiry now."}
+                      </div>
+
+                      {!leadCreated ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleCreateLead()}
+                          disabled={leadCreating || sending}
+                          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {leadCreating ? "Submitting..." : "Submit enquiry"}
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/dashboard/${tradesman?.slug || safeSlug || ""}`}
+                          className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                          {createdLeadId ? "Open dashboard" : "Back to dashboard"}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                <form
+                  onSubmit={handleSend}
+                  className="flex items-end gap-2 sm:gap-3"
                 >
-                  {sending ? "Sending..." : "Send"}
-                </button>
-              </form>
+                  <input
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="Type your message…"
+                    disabled={starting || sending || leadCreated || leadCreating}
+                    className="h-12 flex-1 rounded-2xl border border-slate-300 bg-white px-4 text-[15px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      starting ||
+                      sending ||
+                      !input.trim() ||
+                      leadCreated ||
+                      leadCreating
+                    }
+                    className="inline-flex h-12 min-w-[88px] items-center justify-center rounded-2xl border border-slate-900 bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-400 disabled:bg-slate-400"
+                  >
+                    {sending ? "Sending..." : "Send"}
+                  </button>
+                </form>
+              </div>
             </div>
           </section>
 
-          <aside
-            style={{
-              display: "grid",
-              gap: 16,
-            }}
-          >
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                padding: 18,
-                boxShadow: "0 12px 30px rgba(15,23,42,0.05)",
-              }}
-            >
-              <h2
-                style={{
-                  margin: "0 0 10px 0",
-                  fontSize: 18,
-                }}
-              >
-                How it works
-              </h2>
-              <div
-                style={{
-                  display: "grid",
-                  gap: 10,
-                  color: "#4b5563",
-                  fontSize: 14,
-                }}
-              >
+          <aside className="grid gap-4">
+            <SideCard title="How it works">
+              <div className="grid gap-3 text-sm text-slate-600">
                 <Step text="Tell us about the job." />
                 <Step text="We qualify the enquiry." />
                 <Step text="Submit it to the tradesman." />
               </div>
-            </div>
+            </SideCard>
 
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                padding: 18,
-                boxShadow: "0 12px 30px rgba(15,23,42,0.05)",
-              }}
-            >
-              <h2
-                style={{
-                  margin: "0 0 10px 0",
-                  fontSize: 18,
-                }}
-              >
-                Business
-              </h2>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>
+            <SideCard title="Business">
+              <div className="mb-2 font-semibold text-slate-900">
                 {tradesman?.businessName || "Loading..."}
               </div>
-              <div style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.6 }}>
+              <div className="text-sm leading-6 text-slate-600">
                 Your enquiry goes directly into this business&apos;s TradeMate
                 dashboard.
               </div>
-            </div>
+            </SideCard>
 
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                padding: 18,
-                boxShadow: "0 12px 30px rgba(15,23,42,0.05)",
-              }}
-            >
-              <h2
-                style={{
-                  margin: "0 0 10px 0",
-                  fontSize: 18,
-                }}
-              >
-                Progress
-              </h2>
-              <div
-                style={{
-                  display: "grid",
-                  gap: 8,
-                  color: "#4b5563",
-                  fontSize: 14,
-                }}
-              >
+            <SideCard title="Progress">
+              <div className="grid gap-3">
                 <ProgressRow
                   label="Qualification stage"
                   value={progressLabel}
@@ -962,9 +647,10 @@ export default function TradesmanChatPage() {
                 <ProgressRow
                   label="Reference"
                   value={createdLeadId || "Not submitted yet"}
+                  last
                 />
               </div>
-            </div>
+            </SideCard>
           </aside>
         </div>
       </div>
@@ -972,59 +658,57 @@ export default function TradesmanChatPage() {
   );
 }
 
+function SideCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-3 text-lg font-semibold text-slate-900">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
 function Step({ text }: { text: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        alignItems: "flex-start",
-      }}
-    >
-      <div
-        style={{
-          width: 8,
-          height: 8,
-          marginTop: 6,
-          borderRadius: 999,
-          background: "#111827",
-          flexShrink: 0,
-        }}
-      />
+    <div className="flex items-start gap-3">
+      <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-slate-900" />
       <div>{text}</div>
     </div>
   );
 }
 
-function ProgressRow({ label, value }: { label: string; value: string }) {
+function ProgressRow({
+  label,
+  value,
+  last = false,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+}) {
   return (
     <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        borderBottom: "1px solid #f3f4f6",
-        paddingBottom: 8,
-      }}
+      className={[
+        "flex items-start justify-between gap-4",
+        last ? "" : "border-b border-slate-200 pb-3",
+      ].join(" ")}
     >
-      <span style={{ color: "#6b7280" }}>{label}</span>
-      <span style={{ fontWeight: 700, textAlign: "right" }}>{value}</span>
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="max-w-[55%] text-right text-sm font-semibold text-slate-900">
+        {value}
+      </span>
     </div>
   );
 }
 
 function InfoBubble({ text }: { text: string }) {
   return (
-    <div
-      style={{
-        padding: 14,
-        borderRadius: 14,
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        color: "#6b7280",
-        display: "inline-block",
-      }}
-    >
+    <div className="inline-block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-500 shadow-sm">
       {text}
     </div>
   );

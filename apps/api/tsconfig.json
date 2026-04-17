@@ -4,8 +4,19 @@
     "rootDir": "src",
     "outDir": "dist",
     "composite": true,
+    "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*.ts", "src/server.js", "src/rate-limit.js", "src/notifications.js", "src/db.js", "src/logger.js", "src/stripe.js", "src/tradesman-store.js"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/server.js",
+    "src/rate-limit.js",
+    "src/notifications.js",
+    "src/db.js",
+    "src/logger.js",
+    "src/stripe.js",
+    "src/tradesman-store.js"
+  ],
   "exclude": ["dist", "node_modules"]
 }

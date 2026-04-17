@@ -2,7 +2,6 @@ const { prisma } = require("./db");
 const { getTradesmanById } = require("./tradesman-store");
 
 type JsonObject = Record<string, unknown>;
-type ConversationMessage = unknown[];
 
 type ConversationState = {
   version?: number | string;
@@ -182,29 +181,17 @@ async function updateConversation(
           ? String(state.phase)
           : existing.phase,
       fieldsJson:
-        state?.fields !== undefined
-          ? state.fields
-          : existing.fieldsJson,
-      metaJson:
-        state?.meta !== undefined
-          ? state.meta
-          : existing.metaJson,
+        state?.fields !== undefined ? state.fields : existing.fieldsJson,
+      metaJson: state?.meta !== undefined ? state.meta : existing.metaJson,
       budgetJson:
-        state?.budget !== undefined
-          ? state.budget
-          : existing.budgetJson,
+        state?.budget !== undefined ? state.budget : existing.budgetJson,
       classificationJson:
         state?.classification !== undefined
           ? state.classification
           : existing.classificationJson,
-      auditJson:
-        state?.audit !== undefined
-          ? state.audit
-          : existing.auditJson,
+      auditJson: state?.audit !== undefined ? state.audit : existing.auditJson,
       messagesJson:
-        messages !== undefined
-          ? messages
-          : existing.messagesJson,
+        messages !== undefined ? messages : existing.messagesJson,
       tradesmanId:
         internalTradesmanId !== undefined
           ? internalTradesmanId
@@ -223,3 +210,5 @@ module.exports = {
   getConversation,
   updateConversation,
 };
+
+export {};
