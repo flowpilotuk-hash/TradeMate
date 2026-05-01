@@ -249,10 +249,6 @@ function isAllowedOrigin(origin) {
     return true;
   }
 
-  if (normalized.endsWith(".vercel.app")) {
-    return true;
-  }
-
   return ALLOWED_ORIGINS.includes(normalized);
 }
 
@@ -324,11 +320,28 @@ function rejectDisallowedOrigin(req, res) {
   return false;
 }
 
+const MAX_JSON_BODY_BYTES = 256 * 1024;
+const MAX_RAW_BODY_BYTES = 1024 * 1024;
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Payload too large");
+    this.code = "PAYLOAD_TOO_LARGE";
+  }
+}
+
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let received = 0;
 
     req.on("data", (chunk) => {
+      received += chunk.length;
+      if (received > MAX_JSON_BODY_BYTES) {
+        req.destroy();
+        reject(new PayloadTooLargeError());
+        return;
+      }
       body += chunk;
     });
 
@@ -347,9 +360,17 @@ function readJsonBody(req) {
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
+    let received = 0;
 
     req.on("data", (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      received += buf.length;
+      if (received > MAX_RAW_BODY_BYTES) {
+        req.destroy();
+        reject(new PayloadTooLargeError());
+        return;
+      }
+      chunks.push(buf);
     });
 
     req.on("end", () => resolve(Buffer.concat(chunks)));
@@ -2770,8 +2791,6 @@ const server = createServer(async (req, res) => {
   });
 
   try {
-    await seedDefaultTradesman();
-
     if (req.method === "GET" && requestUrl.pathname === "/health") {
       sendJson(
         res,
@@ -2858,8 +2877,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && requestUrl.pathname === "/tradesmen") {
-      const tradesmen = await listTradesmen();
-      sendJson(res, 200, tradesmen, allowedOrigin);
+      const tradesman = await requireAuth(req, res);
+      if (!tradesman) return;
+
+      sendJson(res, 200, [sanitizeTradesman(tradesman)], allowedOrigin);
       return;
     }
 
@@ -3400,6 +3421,11 @@ const server = createServer(async (req, res) => {
 
     sendJson(res, 404, { error: "Not Found" }, allowedOrigin);
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      sendJson(res, 413, { error: "Payload too large" }, allowedOrigin);
+      return;
+    }
+
     logError("server.unhandled", error, {
       method: req.method,
       path: requestUrl.pathname,
@@ -3414,11 +3440,23 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  logInfo("server.started", {
-    host: HOST,
-    port: PORT,
-    appBaseUrl: APP_BASE_URL,
-    allowedOrigins: ALLOWED_ORIGINS,
+async function bootstrap() {
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      await seedDefaultTradesman();
+    } catch (error) {
+      logError("server.seed_failed", error);
+    }
+  }
+
+  server.listen(PORT, HOST, () => {
+    logInfo("server.started", {
+      host: HOST,
+      port: PORT,
+      appBaseUrl: APP_BASE_URL,
+      allowedOrigins: ALLOWED_ORIGINS,
+    });
   });
-});
+}
+
+void bootstrap();

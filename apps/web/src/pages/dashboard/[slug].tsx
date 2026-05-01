@@ -267,6 +267,18 @@ export default function TradesmanDashboardPage() {
     action: "approve" | "reject" | "quote",
     leadId: string
   ) {
+    let quoteText: string | null = null;
+    if (action === "quote") {
+      const input = window.prompt(
+        "Enter the quote to send to the customer (e.g. £14,500 supply and fit):"
+      );
+      const trimmed = input?.trim();
+      if (!trimmed) {
+        return;
+      }
+      quoteText = trimmed;
+    }
+
     setActionLoading(action);
     setError(null);
 
@@ -285,7 +297,7 @@ export default function TradesmanDashboardPage() {
         },
         body:
           action === "quote"
-            ? JSON.stringify({ quote: "GBP 14,500 supply and fit" })
+            ? JSON.stringify({ quote: quoteText })
             : undefined,
       });
 

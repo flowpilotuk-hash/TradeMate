@@ -3,8 +3,18 @@ const bcrypt: typeof import("bcryptjs") = require("bcryptjs");
 
 import type { JwtPayload, SignOptions } from "jsonwebtoken";
 
-const JWT_SECRET: string =
-  process.env.JWT_SECRET || "dev_secret_change_this_before_production";
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim();
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET must be set in production");
+  }
+
+  return "dev_secret_change_this_before_production";
+}
+
+const JWT_SECRET: string = resolveJwtSecret();
 
 const JWT_EXPIRES_IN: string =
   process.env.JWT_EXPIRES_IN || "7d";

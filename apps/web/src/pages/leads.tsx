@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import AppHeader from "../components/AppHeader";
+import { API_BASE } from "../lib/config";
 
 export default function LeadsLegacyRedirectPage() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function LeadsLegacyRedirectPage() {
       return;
     }
 
-    void fetch("http://localhost:4000/auth/me", {
+    void fetch(`${API_BASE}/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
