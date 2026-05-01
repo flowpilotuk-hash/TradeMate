@@ -7,8 +7,10 @@ export default function HomePage() {
     <main className="min-h-screen bg-white text-slate-900">
       <AppHeader currentPath="/" />
       <Hero />
+      <TradesGrid />
       <ProductVisual />
       <HowItWorks />
+      <TrustPillars />
       <FinalCta />
       <Footer />
     </main>
@@ -78,6 +80,145 @@ function TrustPill({ children }: { children: ReactNode }) {
       </svg>
       {children}
     </span>
+  );
+}
+
+function TradesGrid() {
+  const trades: { name: string; icon: ReactNode }[] = [
+    { name: "Kitchen Fitters", icon: <KitchenIcon /> },
+    { name: "Electricians", icon: <ElectricianIcon /> },
+    { name: "Tilers", icon: <TilerIcon /> },
+    { name: "Bathroom Fitters", icon: <BathroomIcon /> },
+    { name: "Joiners", icon: <JoinerIcon /> },
+  ];
+
+  return (
+    <section className="bg-slate-50">
+      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Built for trades
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            One platform. Every trade.
+          </h2>
+          <p className="mt-4 text-base leading-7 text-slate-600">
+            TradeMate captures the right details for the job — whether you fit
+            kitchens, lay tiles, or rewire homes.
+          </p>
+        </div>
+
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {trades.map((trade) => (
+            <TradeTile key={trade.name} name={trade.name} icon={trade.icon} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TradeTile({ name, icon }: { name: string; icon: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-900">
+        {icon}
+      </span>
+      <span className="text-sm font-semibold text-slate-900">{name}</span>
+    </div>
+  );
+}
+
+function KitchenIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="1.5" />
+      <path d="M3 11h18" />
+      <path d="M8 6.5v1M16 6.5v1M8 14.5v1M16 14.5v1" />
+    </svg>
+  );
+}
+
+function ElectricianIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M13 2L4 13h6l-2 9 10-13h-6l1-7z" />
+    </svg>
+  );
+}
+
+function TilerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="8" height="8" rx="0.5" />
+      <rect x="13" y="3" width="8" height="8" rx="0.5" />
+      <rect x="3" y="13" width="8" height="8" rx="0.5" />
+      <rect x="13" y="13" width="8" height="8" rx="0.5" />
+    </svg>
+  );
+}
+
+function BathroomIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M3 13h18" />
+      <path d="M5 13v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3" />
+      <path d="M8 8a2 2 0 1 1 4 0v5" />
+    </svg>
+  );
+}
+
+function JoinerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path d="M15 3l6 6-3 3-6-6z" />
+      <path d="M12 6l-9 9v3h3l9-9" />
+    </svg>
   );
 }
 
@@ -295,6 +436,117 @@ function Step({
       <h3 className="mt-4 text-lg font-semibold text-slate-900">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
     </div>
+  );
+}
+
+function TrustPillars() {
+  return (
+    <section>
+      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Why TradeMate
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            Built to be trusted with your business.
+          </h2>
+        </div>
+
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <TrustCard
+            icon={<LocationIcon />}
+            title="UK-built and supported"
+            text="Designed and supported in the UK. Email us at hello@flowpilotuk.com and a person reads it."
+          />
+          <TrustCard
+            icon={<ShieldIcon />}
+            title="Secured by Stripe"
+            text="Subscriptions are handled by Stripe — the same payments infrastructure your bank uses."
+          />
+          <TrustCard
+            icon={<RefreshIcon />}
+            title="No lock-in"
+            text="Monthly subscription, cancel anytime. Pay only for the months you actually use."
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustCard({
+  icon,
+  title,
+  text,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+        {icon}
+      </span>
+      <h3 className="mt-4 text-lg font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
+    </div>
+  );
+}
+
+function LocationIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M12 22s8-7.5 8-13a8 8 0 1 0-16 0c0 5.5 8 13 8 13z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M12 2l8 3v7c0 5-3.5 9-8 10-4.5-1-8-5-8-10V5l8-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
   );
 }
 
