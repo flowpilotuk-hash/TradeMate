@@ -40,8 +40,17 @@ const {
   validateConversationMessage,
   validateLeadCreation,
   validateQuoteBody,
-  validateConversationStateForSubmission,
 } = require("./validators");
+const {
+  TRADE_DETECTION_QUESTION,
+  CONTACT_FIELDS,
+  resolveTradeFromMessage,
+  getTradeProfile,
+  getProjectFieldsForTrade,
+  getQuestionDefinition,
+  isFieldInTrade,
+  validateConversationStateForSubmission,
+} = require("./trade-profiles");
 const { rateLimit } = require("./rate-limit");
 const {
   createCheckoutSession,
@@ -65,57 +74,9 @@ const DEFAULT_ALLOWED_ORIGINS =
       ]
     : ["http://localhost:3000"];
 
-const QUESTION_CATALOG = {
-  jobType: {
-    priority: 100,
-    question:
-      "What sort of kitchen project is it - a full fit, a refresh, or worktops only?",
-    quickSelects: ["Full fit", "Refresh", "Worktops only"],
-  },
-  postcode: {
-    priority: 95,
-    question: "What postcode is the property in?",
-    quickSelects: ["LS15", "WF3", "Not sure"],
-  },
-  layoutChange: {
-    priority: 88,
-    question:
-      "Are you keeping the same layout, making a few changes, or changing it quite a bit?",
-    quickSelects: ["Same layout", "A few changes", "Major changes"],
-  },
-  unitsSupply: {
-    priority: 85,
-    question:
-      "Will you be supplying the units, or are you looking for supply and fit?",
-    quickSelects: ["I’m supplying them", "Supply and fit", "Not sure yet"],
-  },
-  kitchenSize: {
-    priority: 80,
-    question: "Roughly what size is the kitchen - small, medium, or large?",
-    quickSelects: ["Small", "Medium", "Large"],
-  },
-  timeline: {
-    priority: 76,
-    question: "When were you hoping to get this done?",
-    quickSelects: ["ASAP", "Next 1-3 months", "3-6 months", "Later on"],
-  },
-  budget: {
-    priority: 72,
-    question:
-      "Do you have a rough budget in mind? Even a ballpark is helpful.",
-    quickSelects: ["Under £10k", "£10k-£15k", "£15k+", "Not sure yet"],
-  },
-  firstName: {
-    priority: 50,
-    question: "Can I grab your first name?",
-    quickSelects: [],
-  },
-  email: {
-    priority: 45,
-    question: "What's the best email to send the confirmation to?",
-    quickSelects: [],
-  },
-};
+function getQuestionFor(state, fieldKey) {
+  return getQuestionDefinition(state?.tradeKind, fieldKey);
+}
 
 const FOLLOW_UP_CATALOG = {
   unitCount: {
@@ -177,17 +138,9 @@ const FOLLOW_UP_CATALOG = {
   },
 };
 
-const PROJECT_FIELDS = [
-  "jobType",
-  "postcode",
-  "kitchenSize",
-  "layoutChange",
-  "unitsSupply",
-  "timeline",
-  "budget",
-];
-
-const CONTACT_FIELDS = ["firstName", "email"];
+function getProjectFieldsForState(state) {
+  return getProjectFieldsForTrade(state?.tradeKind);
+}
 
 const ENUM_CONTRADICTION_FIELDS = new Set([
   "jobType",
@@ -385,7 +338,7 @@ function getRequestUrl(req) {
 function createInitialConversationStateV1(args) {
   return {
     version: 1,
-    tradeKind: "KITCHEN",
+    tradeKind: "UNKNOWN",
     phase: "COLLECTING",
     fields: {},
     meta: {
@@ -542,8 +495,10 @@ function shouldPreferContactNow(state) {
 
   if (missingContactFields.length === 0) return false;
 
-  const projectCompleted = countCompletedFields(state, PROJECT_FIELDS);
-  return projectCompleted >= 4;
+  const projectFields = getProjectFieldsForState(state);
+  const projectCompleted = countCompletedFields(state, projectFields);
+  const target = Math.max(2, Math.min(4, projectFields.length - 1));
+  return projectCompleted >= target;
 }
 
 function compareFieldStrength(existingField, incomingUpdate) {
@@ -1554,6 +1509,17 @@ function extractUpdatesFromMessage(message, state) {
     lastUserIntent: null,
   };
 
+  let detectedTradeKind = null;
+  if (!state?.tradeKind || state.tradeKind === "UNKNOWN") {
+    detectedTradeKind = resolveTradeFromMessage(text);
+  }
+
+  const effectiveTradeKindForExtractors =
+    detectedTradeKind || state?.tradeKind || "UNKNOWN";
+  const allowKitchenExtractors =
+    effectiveTradeKindForExtractors === "KITCHEN" ||
+    effectiveTradeKindForExtractors === "UNKNOWN";
+
   for (const segment of segments.length > 0 ? segments : [text]) {
     const segText = normalizeTextForDetection(segment);
     const segLower = segText.toLowerCase();
@@ -1561,10 +1527,12 @@ function extractUpdatesFromMessage(message, state) {
     extractPostcode(segText, updates);
     extractEmail(segText, updates, currentQuestion);
     extractPhone(segText, updates);
-    extractJobType(segText, segLower, updates, currentQuestion, ambiguities);
-    extractKitchenSize(segLower, updates, currentQuestion);
-    extractLayoutChange(segLower, updates, currentQuestion, ambiguities);
-    extractUnitsSupply(segLower, updates, currentQuestion, ambiguities);
+    if (allowKitchenExtractors) {
+      extractJobType(segText, segLower, updates, currentQuestion, ambiguities);
+      extractKitchenSize(segLower, updates, currentQuestion);
+      extractLayoutChange(segLower, updates, currentQuestion, ambiguities);
+      extractUnitsSupply(segLower, updates, currentQuestion, ambiguities);
+    }
     extractFirstName(segText, segLower, updates, currentQuestion);
     extractPropertyContext(segLower, notes, metaPatch);
     extractOptionalInsights(
@@ -1629,11 +1597,27 @@ function extractUpdatesFromMessage(message, state) {
   metaPatch.ambiguities = ambiguities;
   metaPatch.optionalInsights = optionalInsights;
 
-  return { updates, timelineSpecific, metaPatch };
+  // Generic verbatim capture for the active question if no extractor caught it.
+  // Only fires when the trade is known and the current question is one of that
+  // trade's project fields. Lets non-kitchen quick-select chip clicks land
+  // without per-trade extractors.
+  if (
+    currentQuestion &&
+    effectiveTradeKindForExtractors !== "UNKNOWN" &&
+    isFieldInTrade(effectiveTradeKindForExtractors, currentQuestion) &&
+    !updates.some((u) => u.key === currentQuestion) &&
+    text.trim().length > 0
+  ) {
+    pushUpdate(updates, currentQuestion, text.trim(), 0.85, "context");
+  }
+
+  return { updates, timelineSpecific, metaPatch, detectedTradeKind };
 }
 
 function getMissingProjectFields(state) {
-  return PROJECT_FIELDS.filter((key) => !hasFieldValue(state?.fields?.[key]));
+  return getProjectFieldsForState(state).filter(
+    (key) => !hasFieldValue(state?.fields?.[key])
+  );
 }
 
 function getMissingContactFields(state) {
@@ -1645,17 +1629,18 @@ function hasSubmissionBlockingClarification(state) {
 }
 
 function meetsSubmissionConfidenceThreshold(state) {
-  const required = [
-    ["jobType", 0.8],
-    ["postcode", 0.75],
-    ["kitchenSize", 0.75],
-    ["layoutChange", 0.75],
-    ["unitsSupply", 0.75],
-    ["timeline", 0.7],
-    ["budget", 0.7],
+  const projectFields = getProjectFieldsForState(state);
+  const projectThresholds = projectFields.map((key) => {
+    if (key === "postcode") return [key, 0.75];
+    if (key === "jobType") return [key, 0.8];
+    return [key, 0.7];
+  });
+  const contactThresholds = [
     ["firstName", 0.9],
     ["email", 0.95],
   ];
+
+  const required = [...projectThresholds, ...contactThresholds];
 
   return required.every(([key, threshold]) => {
     const field = state?.fields?.[key];
@@ -1669,8 +1654,13 @@ function recomputeDerivedState(state) {
   const missingProjectFields = getMissingProjectFields(state);
   const missingContactFields = getMissingContactFields(state);
 
-  const hasAtLeastFourProjectFields =
-    PROJECT_FIELDS.length - missingProjectFields.length >= 4;
+  const projectFields = getProjectFieldsForState(state);
+  const completedProjectCount = projectFields.length - missingProjectFields.length;
+  const projectThreshold = Math.max(
+    2,
+    Math.min(4, projectFields.length > 0 ? projectFields.length - 1 : 0)
+  );
+  const hasAtLeastFourProjectFields = completedProjectCount >= projectThreshold;
 
   const contactRequiredNow =
     !state.meta.contactRequested &&
@@ -1832,8 +1822,16 @@ function enqueueFollowUps(state) {
 }
 
 function applyValidatedUpdates(args) {
+  const tradeKindToSet = args.detectedTradeKind || null;
+  const currentTradeKind = args.state?.tradeKind || "UNKNOWN";
+  const nextTradeKind =
+    tradeKindToSet && currentTradeKind === "UNKNOWN"
+      ? tradeKindToSet
+      : currentTradeKind;
+
   let next = {
     ...args.state,
+    tradeKind: nextTradeKind,
     audit: {
       ...args.state.audit,
       lastUserMessageAt: args.nowIso,
@@ -2178,7 +2176,7 @@ function buildAcknowledgement(capturedKeys, state) {
 }
 
 function getQuestionPriorityScore(state, key) {
-  const base = Number(QUESTION_CATALOG[key]?.priority || 0);
+  const base = Number(getQuestionFor(state, key)?.priority || 0);
   const askedCount = getAskedCount(state, key);
   const lastQuestionField = getExpectedFieldFromState(state);
   let score = base;
@@ -2235,6 +2233,10 @@ function pickBestMissingField(state) {
 }
 
 function pickBestFollowUp(state) {
+  if (state?.tradeKind !== "KITCHEN") {
+    return null;
+  }
+
   const queue = Array.isArray(state?.meta?.followUpQueue)
     ? state.meta.followUpQueue
     : [];
@@ -2278,8 +2280,10 @@ function getConversationTone(state, options = {}) {
   return "neutral";
 }
 
-function softenQuestion(question, tone, nextField) {
+function softenQuestion(question, tone, nextField, state) {
   if (!question) return question;
+
+  const tradeKind = state?.tradeKind || null;
 
   if (tone === "reassuring" && nextField === "budget") {
     return "No worries if it's not fixed yet - do you have a rough budget in mind? Even a ballpark is helpful.";
@@ -2289,7 +2293,7 @@ function softenQuestion(question, tone, nextField) {
     return "Roughly when were you hoping to get this done?";
   }
 
-  if (tone === "welcoming" && nextField === "jobType") {
+  if (tone === "welcoming" && nextField === "jobType" && tradeKind === "KITCHEN") {
     return "To start with, what sort of kitchen project is it - a full fit, a refresh, or worktops only?";
   }
 
@@ -2316,8 +2320,9 @@ function getQuickSelectsForField(field, state) {
   if (FOLLOW_UP_CATALOG[field]?.quickSelects) {
     return FOLLOW_UP_CATALOG[field].quickSelects.slice(0, 5);
   }
-  if (QUESTION_CATALOG[field]?.quickSelects) {
-    const defaults = QUESTION_CATALOG[field].quickSelects.slice(0, 5);
+  const questionDef = getQuestionFor(state, field);
+  if (questionDef?.quickSelects) {
+    const defaults = questionDef.quickSelects.slice(0, 5);
 
     if (field === "postcode") {
       const existing = getFieldValue(state, "postcode");
@@ -2346,6 +2351,17 @@ function getNextQuestion(state, options = {}) {
   const acknowledgement = buildAcknowledgement(capturedKeys, state);
   const tone = getConversationTone(state, options);
 
+  if (!state?.tradeKind || state.tradeKind === "UNKNOWN") {
+    return {
+      nextField: TRADE_DETECTION_QUESTION.field,
+      question: TRADE_DETECTION_QUESTION.question,
+      reply: buildHumanReply(acknowledgement, TRADE_DETECTION_QUESTION.question),
+      tone: "welcoming",
+      isFollowUp: false,
+      quickSelects: TRADE_DETECTION_QUESTION.quickSelects,
+    };
+  }
+
   if (pendingClarification?.question) {
     const quickSelects = getQuickSelectsForField(pendingClarification.field, state);
     return {
@@ -2364,7 +2380,7 @@ function getNextQuestion(state, options = {}) {
   const followUpKey = pickBestFollowUp(state);
   if (shouldAskFollowUpNow(state, followUpKey)) {
     const baseQuestion = FOLLOW_UP_CATALOG[followUpKey].question;
-    const question = softenQuestion(baseQuestion, tone, followUpKey);
+    const question = softenQuestion(baseQuestion, tone, followUpKey, state);
     const quickSelects = getQuickSelectsForField(followUpKey, state);
 
     return {
@@ -2393,8 +2409,8 @@ function getNextQuestion(state, options = {}) {
     };
   }
 
-  const baseQuestion = QUESTION_CATALOG[nextField]?.question || null;
-  const question = softenQuestion(baseQuestion, tone, nextField);
+  const baseQuestion = getQuestionFor(state, nextField)?.question || null;
+  const question = softenQuestion(baseQuestion, tone, nextField, state);
   const quickSelects = getQuickSelectsForField(nextField, state);
 
   return {
@@ -3119,6 +3135,7 @@ const server = createServer(async (req, res) => {
         timelineSpecific: extracted.timelineSpecific === true,
         metaPatch: extracted.metaPatch,
         userMessage: String(message),
+        detectedTradeKind: extracted.detectedTradeKind || null,
       });
 
       const next = getNextQuestion(nextState, {

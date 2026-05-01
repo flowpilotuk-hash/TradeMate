@@ -49,58 +49,6 @@ function isValidQuote(value: unknown): boolean {
   return trimmed.length >= 3 && trimmed.length <= 200;
 }
 
-function hasFieldValue(
-  fields: Record<string, { value?: unknown } | undefined> | undefined,
-  key: string
-): boolean {
-  const entry = fields?.[key];
-
-  if (!entry || typeof entry !== "object") {
-    return false;
-  }
-
-  const value = entry.value;
-
-  if (value === null || value === undefined) {
-    return false;
-  }
-
-  if (typeof value === "string") {
-    return value.trim().length > 0;
-  }
-
-  if (typeof value === "object") {
-    return Object.keys(value as Record<string, unknown>).length > 0;
-  }
-
-  return true;
-}
-
-function getFieldValue(
-  fields: Record<string, { value?: unknown } | undefined> | undefined,
-  key: string
-): unknown {
-  return fields?.[key]?.value;
-}
-
-function collectMissingConversationFields(
-  fields: Record<string, { value?: unknown } | undefined>
-): string[] {
-  const missing: string[] = [];
-
-  if (!hasFieldValue(fields, "jobType")) missing.push("jobType");
-  if (!hasFieldValue(fields, "postcode")) missing.push("postcode");
-  if (!hasFieldValue(fields, "kitchenSize")) missing.push("kitchenSize");
-  if (!hasFieldValue(fields, "layoutChange")) missing.push("layoutChange");
-  if (!hasFieldValue(fields, "unitsSupply")) missing.push("unitsSupply");
-  if (!hasFieldValue(fields, "timeline")) missing.push("timeline");
-  if (!hasFieldValue(fields, "budget")) missing.push("budget");
-  if (!hasFieldValue(fields, "firstName")) missing.push("firstName");
-  if (!hasFieldValue(fields, "email")) missing.push("email");
-
-  return missing;
-}
-
 export function validateTradesmanSignup(body: {
   businessName?: unknown;
   email?: unknown;
@@ -174,62 +122,6 @@ export function validateQuoteBody(body: { quote?: unknown }): string[] {
 
   if (!isValidQuote(body?.quote)) {
     errors.push("quote must be between 3 and 200 characters");
-  }
-
-  return errors;
-}
-
-export function validateConversationStateForSubmission(state: {
-  fields?: Record<string, { value?: unknown } | undefined>;
-}): string[] {
-  const errors: string[] = [];
-  const fields = state?.fields || {};
-
-  const missingFields = collectMissingConversationFields(fields);
-  const postcode = getFieldValue(fields, "postcode");
-  const email = getFieldValue(fields, "email");
-  const firstName = getFieldValue(fields, "firstName");
-
-  if (missingFields.includes("jobType")) {
-    errors.push("Please confirm the type of kitchen job required.");
-  }
-
-  if (missingFields.includes("postcode")) {
-    errors.push("Please provide the property postcode.");
-  } else if (!isValidUkPostcode(postcode)) {
-    errors.push("postcode must be a valid UK postcode");
-  }
-
-  if (missingFields.includes("kitchenSize")) {
-    errors.push("Please confirm the kitchen size.");
-  }
-
-  if (missingFields.includes("layoutChange")) {
-    errors.push("Please confirm whether the layout is staying the same or changing.");
-  }
-
-  if (missingFields.includes("unitsSupply")) {
-    errors.push("Please confirm who is supplying the units.");
-  }
-
-  if (missingFields.includes("timeline")) {
-    errors.push("Please confirm the project timeline.");
-  }
-
-  if (missingFields.includes("budget")) {
-    errors.push("Please provide a budget indication.");
-  }
-
-  if (missingFields.includes("firstName")) {
-    errors.push("Please provide a first name.");
-  } else if (typeof firstName === "string" && firstName.trim().length < 2) {
-    errors.push("firstName must be at least 2 characters");
-  }
-
-  if (missingFields.includes("email")) {
-    errors.push("Please provide an email address.");
-  } else if (!isValidEmail(email)) {
-    errors.push("email must be valid");
   }
 
   return errors;
