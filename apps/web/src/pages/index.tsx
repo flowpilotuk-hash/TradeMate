@@ -20,16 +20,21 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-gradient-to-b from-slate-50 to-white" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] bg-gradient-to-b from-blue-50 via-slate-50 to-white" />
+      <div className="pointer-events-none absolute left-1/2 top-24 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-200/40 blur-3xl" />
 
       <div className="mx-auto max-w-5xl px-6 pb-20 pt-16 text-center sm:pt-24">
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3.5 py-1 text-xs font-medium text-slate-600 shadow-sm">
+        <span className="inline-flex items-center rounded-full border border-blue-200 bg-white px-3.5 py-1 text-xs font-medium text-blue-700 shadow-sm">
           AI lead qualification for trades
         </span>
 
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
           Turn customer enquiries
-          <br className="hidden sm:block" /> into qualified leads.
+          <br className="hidden sm:block" /> into{" "}
+          <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            qualified leads
+          </span>
+          .
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -84,12 +89,42 @@ function TrustPill({ children }: { children: ReactNode }) {
 }
 
 function TradesGrid() {
-  const trades: { name: string; icon: ReactNode }[] = [
-    { name: "Kitchen Fitters", icon: <KitchenIcon /> },
-    { name: "Electricians", icon: <ElectricianIcon /> },
-    { name: "Tilers", icon: <TilerIcon /> },
-    { name: "Bathroom Fitters", icon: <BathroomIcon /> },
-    { name: "Joiners", icon: <JoinerIcon /> },
+  const trades: {
+    name: string;
+    icon: ReactNode;
+    iconBg: string;
+    iconText: string;
+  }[] = [
+    {
+      name: "Kitchen Fitters",
+      icon: <KitchenIcon />,
+      iconBg: "bg-emerald-50",
+      iconText: "text-emerald-600",
+    },
+    {
+      name: "Electricians",
+      icon: <ElectricianIcon />,
+      iconBg: "bg-amber-50",
+      iconText: "text-amber-600",
+    },
+    {
+      name: "Tilers",
+      icon: <TilerIcon />,
+      iconBg: "bg-indigo-50",
+      iconText: "text-indigo-600",
+    },
+    {
+      name: "Bathroom Fitters",
+      icon: <BathroomIcon />,
+      iconBg: "bg-cyan-50",
+      iconText: "text-cyan-600",
+    },
+    {
+      name: "Joiners",
+      icon: <JoinerIcon />,
+      iconBg: "bg-orange-50",
+      iconText: "text-orange-600",
+    },
   ];
 
   return (
@@ -110,7 +145,13 @@ function TradesGrid() {
 
         <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {trades.map((trade) => (
-            <TradeTile key={trade.name} name={trade.name} icon={trade.icon} />
+            <TradeTile
+              key={trade.name}
+              name={trade.name}
+              icon={trade.icon}
+              iconBg={trade.iconBg}
+              iconText={trade.iconText}
+            />
           ))}
         </div>
       </div>
@@ -118,10 +159,22 @@ function TradesGrid() {
   );
 }
 
-function TradeTile({ name, icon }: { name: string; icon: ReactNode }) {
+function TradeTile({
+  name,
+  icon,
+  iconBg,
+  iconText,
+}: {
+  name: string;
+  icon: ReactNode;
+  iconBg: string;
+  iconText: string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-900">
+      <span
+        className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${iconBg} ${iconText}`}
+      >
         {icon}
       </span>
       <span className="text-sm font-semibold text-slate-900">{name}</span>
@@ -314,7 +367,7 @@ function Bubble({
       <div
         className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
           isRight
-            ? "bg-slate-900 text-white"
+            ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm"
             : "bg-white text-slate-900 ring-1 ring-slate-200"
         }`}
       >
@@ -426,10 +479,10 @@ function Step({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
       <div className="flex items-center gap-3">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm">
           {icon}
         </span>
-        <span className="text-xs font-semibold tracking-[0.14em] text-slate-400">
+        <span className="text-xs font-semibold tracking-[0.14em] text-blue-600">
           STEP {String(number).padStart(2, "0")}
         </span>
       </div>
@@ -485,7 +538,7 @@ function TrustCard({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm">
         {icon}
       </span>
       <h3 className="mt-4 text-lg font-semibold text-slate-900">{title}</h3>
@@ -579,13 +632,13 @@ function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-slate-500 sm:flex-row">
         <div>© TradeMate</div>
         <div className="flex gap-6">
-          <Link href="/privacy" className="transition hover:text-slate-900">
+          <Link href="/privacy" className="transition hover:text-blue-600">
             Privacy
           </Link>
-          <Link href="/terms" className="transition hover:text-slate-900">
+          <Link href="/terms" className="transition hover:text-blue-600">
             Terms
           </Link>
-          <Link href="/cookies" className="transition hover:text-slate-900">
+          <Link href="/cookies" className="transition hover:text-blue-600">
             Cookies
           </Link>
         </div>
