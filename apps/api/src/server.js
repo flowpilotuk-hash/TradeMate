@@ -51,6 +51,7 @@ const {
   isFieldInTrade,
   validateConversationStateForSubmission,
 } = require("./trade-profiles");
+const { rewriteReply } = require("./llm-rewrite");
 const { rateLimit } = require("./rate-limit");
 const {
   createCheckoutSession,
@@ -2762,6 +2763,22 @@ async function handleSubscriptionDeleted(event) {
   });
 }
 
+async function buildConversationalReply(state, next, recentMessages, options = {}) {
+  if (!next?.reply) return next?.reply || "";
+
+  const tradeKind = state?.tradeKind || null;
+  const profile = tradeKind ? getTradeProfile(tradeKind) : null;
+
+  return rewriteReply({
+    baseReply: next.reply,
+    fieldKey: next.nextField || null,
+    tradeKind,
+    tradeLabel: profile?.label || null,
+    recentTranscript: Array.isArray(recentMessages) ? recentMessages : [],
+    isFirstQuestion: Boolean(options.isFirstQuestion),
+  });
+}
+
 async function handleStripeWebhookEvent(event) {
   switch (event.type) {
     case "checkout.session.completed":
@@ -3047,7 +3064,14 @@ const server = createServer(async (req, res) => {
         ? annotateFollowUpAsked(stateWithMeta, next.nextField)
         : annotateQuestionAsked(stateWithMeta, next.nextField);
 
-      const initialMessages = [{ role: "bot", text: next.reply }];
+      const conversationalReply = await buildConversationalReply(
+        stateWithMeta,
+        next,
+        [],
+        { isFirstQuestion: true }
+      );
+
+      const initialMessages = [{ role: "bot", text: conversationalReply }];
 
       await updateConversation(
         created.conversationId,
@@ -3071,7 +3095,7 @@ const server = createServer(async (req, res) => {
           messages: freshConversation?.messages || initialMessages,
           nextField: next.nextField,
           question: next.question,
-          reply: next.reply,
+          reply: conversationalReply,
           quickSelects: next.quickSelects || [],
         },
         allowedOrigin
@@ -3155,7 +3179,15 @@ const server = createServer(async (req, res) => {
         ? annotateFollowUpAsked(stateWithTone, next.nextField)
         : annotateQuestionAsked(stateWithTone, next.nextField);
 
-      messages.push({ role: "bot", text: next.reply });
+      // Pass the prior transcript (excluding the just-pushed user message)
+      // so the rewriter can acknowledge what the customer just said.
+      const conversationalReply = await buildConversationalReply(
+        stateWithTone,
+        next,
+        messages
+      );
+
+      messages.push({ role: "bot", text: conversationalReply });
 
       await updateConversation(conversationId, stateWithTone, messages);
 
@@ -3178,7 +3210,7 @@ const server = createServer(async (req, res) => {
           messages,
           nextField: next.nextField,
           question: next.question,
-          reply: next.reply,
+          reply: conversationalReply,
           quickSelects: next.quickSelects || [],
         },
         allowedOrigin
