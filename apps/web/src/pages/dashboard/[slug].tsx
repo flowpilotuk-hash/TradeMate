@@ -612,32 +612,56 @@ export default function TradesmanDashboardPage() {
 
                 <PanelCard title="Conversation transcript">
                   {selectedLead.conversationMessages?.length ? (
-                    <div className="space-y-3">
-                      {selectedLead.conversationMessages.map((message, index) => {
-                        const isUser = message.role === "user";
-                        const isSystem = message.role === "system";
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+                      <div className="space-y-2">
+                        {selectedLead.conversationMessages.map((message, index) => {
+                          const isCustomer = message.role === "user";
+                          const isSystem = message.role === "system";
 
-                        return (
-                          <div
-                            key={`${message.role}-${index}`}
-                            className={[
-                              "rounded-xl border p-4",
-                              isUser
-                                ? "border-indigo-200 bg-indigo-50"
-                                : isSystem
-                                ? "border-emerald-200 bg-emerald-50"
-                                : "border-slate-200 bg-slate-50",
-                            ].join(" ")}
-                          >
-                            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              {isUser ? "Customer" : isSystem ? "System" : "Bot"}
+                          if (isSystem) {
+                            return (
+                              <div
+                                key={`${message.role}-${index}`}
+                                className="flex justify-center px-1 py-1"
+                              >
+                                <div className="max-w-md rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                  {message.text}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={`${message.role}-${index}`}
+                              className={`flex ${
+                                isCustomer ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={[
+                                  "max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-sm",
+                                  isCustomer
+                                    ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white"
+                                    : "bg-slate-50 text-slate-900 ring-1 ring-slate-200",
+                                ].join(" ")}
+                              >
+                                {message.text}
+                              </div>
                             </div>
-                            <div className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                              {message.text}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex items-center justify-center gap-4 border-t border-slate-200 pt-3 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600" />
+                          Customer
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-slate-300" />
+                          Bot
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500">

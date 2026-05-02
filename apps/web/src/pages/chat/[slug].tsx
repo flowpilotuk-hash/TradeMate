@@ -10,7 +10,7 @@ import {
 import AppHeader from "../../components/AppHeader";
 import { API_BASE } from "../../lib/config";
 
-type ChatRole = "bot" | "user" | "system";
+type ChatRole = "bot" | "user" | "system" | "error";
 
 type ChatMessage = {
   id: string;
@@ -313,7 +313,7 @@ export default function TradesmanChatPage() {
         ...current,
         {
           id: createMessageId(),
-          role: "system",
+          role: "error",
           text: "Sorry — something went wrong sending that. Please review your message and try again.",
         },
       ]);
@@ -393,7 +393,7 @@ export default function TradesmanChatPage() {
         ...current,
         {
           id: createMessageId(),
-          role: "system",
+          role: "error",
           text: "We couldn't submit your enquiry yet. Please check your details and try again.",
         },
       ]);
@@ -418,32 +418,6 @@ export default function TradesmanChatPage() {
       <AppHeader dashboardSlug={safeSlug ?? undefined} />
 
       <div className="mx-auto w-full max-w-[1200px] px-4 pb-6 pt-4 sm:px-6 sm:pb-8 sm:pt-6 lg:px-8 lg:pb-10">
-        <div className="mb-4 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end lg:justify-between lg:p-6">
-          <div className="min-w-0">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs">
-              {tradesman?.businessName || "TradeMate"}
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Request a Quote
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-[15px]">
-              Tell us about your job and we&apos;ll qualify your enquiry for{" "}
-              <strong>{tradesman?.businessName || "this business"}</strong>.
-            </p>
-          </div>
-
-          {tradesman ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 lg:min-w-[240px]">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                Enquiry link
-              </div>
-              <div className="break-words font-semibold text-slate-900">
-                {`/chat/${tradesman.slug}`}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
         {error ? (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-700 whitespace-pre-wrap">
             {error}
@@ -452,62 +426,98 @@ export default function TradesmanChatPage() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6">
           <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.07)]">
-            <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="truncate text-base font-semibold text-slate-900 sm:text-lg">
-                    {tradesman?.businessName || "Customer Chat"}
+            <div className="border-b border-slate-200 bg-white px-4 py-3.5 sm:px-5">
+              <div className="flex items-center gap-3">
+                <BusinessAvatar
+                  businessName={tradesman?.businessName || "TradeMate"}
+                  size="lg"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-base font-semibold text-slate-900">
+                    {tradesman?.businessName || "TradeMate"}
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {progressLabel}
+                  <div className="mt-0.5 truncate text-xs text-slate-500">
+                    {starting
+                      ? "Starting conversation"
+                      : leadCreated
+                        ? "Enquiry submitted"
+                        : progressLabel}
                   </div>
                 </div>
-
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                  <span
-                    className={[
-                      "inline-block h-2.5 w-2.5 rounded-full",
-                      starting
-                        ? "bg-slate-400"
-                        : phase === "READY_FOR_HANDOFF"
-                        ? "bg-emerald-500"
-                        : "bg-blue-500",
-                    ].join(" ")}
-                  />
-                  {starting ? "Starting conversation..." : progressLabel}
-                </div>
+                <PhasePill
+                  starting={starting}
+                  phase={phase}
+                  leadCreated={leadCreated}
+                />
               </div>
 
-              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+              <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
                 {helperCopy}
               </div>
             </div>
 
-            <div className="flex flex-col lg:h-[calc(100vh-270px)]">
+            <div className="flex flex-col lg:h-[calc(100vh-220px)]">
               <div className="min-h-[340px] flex-1 overflow-y-auto bg-slate-50 px-4 py-4 sm:px-5 sm:py-5">
                 {starting ? (
                   <InfoBubble text="Starting conversation…" />
                 ) : messages.length === 0 ? (
                   <InfoBubble text="No messages yet." />
                 ) : (
-                  <div className="space-y-3">
-                    {messages.map((message) => {
+                  <div className="space-y-2.5">
+                    {messages.map((message, index) => {
                       const isUser = message.role === "user";
                       const isSystem = message.role === "system";
+                      const isError = message.role === "error";
+
+                      if (isSystem || isError) {
+                        return (
+                          <div
+                            key={message.id}
+                            className="flex justify-center px-1"
+                          >
+                            <div
+                              className={[
+                                "max-w-md rounded-full px-3.5 py-1.5 text-xs font-medium",
+                                isError
+                                  ? "border border-red-200 bg-red-50 text-red-700"
+                                  : "border border-emerald-200 bg-emerald-50 text-emerald-700",
+                              ].join(" ")}
+                            >
+                              {message.text}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      const previous = messages[index - 1];
+                      const showAvatar =
+                        !isUser &&
+                        (!previous || previous.role !== message.role);
 
                       return (
                         <div
                           key={message.id}
-                          className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                          className={`flex items-end gap-2 ${
+                            isUser ? "justify-end" : "justify-start"
+                          }`}
                         >
+                          {!isUser ? (
+                            showAvatar ? (
+                              <BusinessAvatar
+                                businessName={
+                                  tradesman?.businessName || "TradeMate"
+                                }
+                              />
+                            ) : (
+                              <div className="h-8 w-8 shrink-0" aria-hidden />
+                            )
+                          ) : null}
                           <div
                             className={[
-                              "max-w-[85%] rounded-2xl px-4 py-3 text-[15px] leading-6 shadow-sm sm:max-w-[78%]",
+                              "max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-sm sm:max-w-[72%]",
                               isUser
-                                ? "border border-slate-900 bg-slate-900 text-white"
-                                : isSystem
-                                ? "border border-emerald-200 bg-emerald-50 text-slate-900"
-                                : "border border-slate-200 bg-white text-slate-900",
+                                ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white"
+                                : "bg-white text-slate-900 ring-1 ring-slate-200",
                             ].join(" ")}
                           >
                             {message.text}
@@ -517,16 +527,15 @@ export default function TradesmanChatPage() {
                     })}
 
                     {sending ? (
-                      <div className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-6 text-slate-500 shadow-sm sm:max-w-[78%]">
-                          Typing…
-                        </div>
+                      <div className="flex items-end gap-2 justify-start">
+                        <div className="h-8 w-8 shrink-0" aria-hidden />
+                        <TypingDots />
                       </div>
                     ) : null}
 
                     {leadCreating ? (
-                      <div className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] leading-6 text-slate-500 shadow-sm sm:max-w-[78%]">
+                      <div className="flex justify-center px-1">
+                        <div className="max-w-md rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-600">
                           Submitting your enquiry…
                         </div>
                       </div>
@@ -570,7 +579,7 @@ export default function TradesmanChatPage() {
                           type="button"
                           onClick={() => void handleCreateLead()}
                           disabled={leadCreating || sending}
-                          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {leadCreating ? "Submitting..." : "Submit enquiry"}
                         </button>
@@ -655,6 +664,91 @@ export default function TradesmanChatPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function getInitials(name: string): string {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function BusinessAvatar({
+  businessName,
+  size = "sm",
+}: {
+  businessName: string;
+  size?: "sm" | "lg";
+}) {
+  const sizeClasses =
+    size === "lg"
+      ? "h-10 w-10 text-sm"
+      : "h-8 w-8 text-[11px]";
+  return (
+    <div
+      className={`${sizeClasses} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 font-bold text-white ring-2 ring-white shadow-sm`}
+    >
+      {getInitials(businessName)}
+    </div>
+  );
+}
+
+function PhasePill({
+  starting,
+  phase,
+  leadCreated,
+}: {
+  starting: boolean;
+  phase?: string;
+  leadCreated: boolean;
+}) {
+  let label = "Live";
+  let dotClass = "bg-blue-500";
+  let pillClass = "bg-blue-50 text-blue-700 ring-blue-200";
+
+  if (starting) {
+    label = "Connecting";
+    dotClass = "bg-slate-400";
+    pillClass = "bg-slate-100 text-slate-600 ring-slate-200";
+  } else if (leadCreated) {
+    label = "Submitted";
+    dotClass = "bg-emerald-500";
+    pillClass = "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  } else if (phase === "READY_FOR_HANDOFF") {
+    label = "Ready";
+    dotClass = "bg-emerald-500";
+    pillClass = "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  }
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${pillClass}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+      {label}
+    </span>
+  );
+}
+
+function TypingDots() {
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
+      <div className="flex items-center gap-1">
+        <span
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.3s" }}
+        />
+        <span
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.15s" }}
+        />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+      </div>
+    </div>
   );
 }
 
