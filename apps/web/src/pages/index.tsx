@@ -43,18 +43,12 @@ function Hero() {
           more time quoting.
         </p>
 
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <div className="mt-9 flex justify-center">
           <Link
             href="/signup"
             className="inline-flex h-12 items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
           >
             Get started
-          </Link>
-          <Link
-            href="/chat/leeds-kitchen-co"
-            className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-          >
-            View demo
           </Link>
         </div>
 

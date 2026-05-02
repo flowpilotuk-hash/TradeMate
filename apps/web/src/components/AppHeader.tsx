@@ -15,7 +15,6 @@ export default function AppHeader({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const dashboardHref = dashboardSlug ? `/dashboard/${dashboardSlug}` : "/login";
-  const demoHref = "/chat/leeds-kitchen-co";
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -38,26 +37,17 @@ export default function AppHeader({
           TradeMate
         </Link>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <nav className="flex items-center gap-1">
-            {navItems.map((item) => (
-              <NavLink
-                key={`${item.href}-${item.label}`}
-                href={item.href}
-                currentPath={currentPath}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <Link
-            href={demoHref}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-          >
-            Demo chat
-          </Link>
-        </div>
+        <nav className="hidden items-center gap-1 md:flex">
+          {navItems.map((item) => (
+            <NavLink
+              key={`${item.href}-${item.label}`}
+              href={item.href}
+              currentPath={currentPath}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
 
         <button
           type="button"
@@ -110,13 +100,6 @@ export default function AppHeader({
                 </MobileNavLink>
               ))}
             </nav>
-
-            <Link
-              href={demoHref}
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-            >
-              Demo chat
-            </Link>
           </div>
         </div>
       )}
