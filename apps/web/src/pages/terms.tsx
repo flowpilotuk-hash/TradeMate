@@ -1,55 +1,66 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import AppHeader from "../components/AppHeader";
 
-export default function PrivacyPage() {
+export default function TermsPage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        color: "#111827",
-        paddingBottom: 40,
-      }}
-    >
-      <AppHeader currentPath="/privacy" />
+    <main className="min-h-screen bg-white text-slate-900">
+      <AppHeader currentPath="/terms" />
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px 0 24px" }}>
+      <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16">
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          <strong>Placeholder content.</strong> The sections below are stubs to
+          give the page structure. Replace with your final, legally-reviewed
+          terms before public launch.
+        </div>
+
         <LegalCard
-          title="Privacy Policy"
-          intro="This policy explains how TradeMate collects, uses, and stores personal information."
+          title="Terms of Service"
+          intro="These terms govern your use of TradeMate. By creating an account or sending an enquiry through the service, you agree to these terms."
         >
           <Section
-            title="What we collect"
-            text="TradeMate may collect business account information from tradesmen, including business name, email address, and login credentials. TradeMate may also collect customer enquiry information, including name, email address, phone number, postcode, project details, and conversation content entered into the chat flow."
+            title="The service"
+            text="TradeMate is a platform that helps tradesmen capture, qualify, and manage customer enquiries. Tradesmen receive an enquiry link they can share with customers. Customers use that link to describe a job; TradeMate captures the details and delivers a structured lead to the tradesman's dashboard."
           />
           <Section
-            title="How we use information"
-            text="We use this information to operate the platform, route enquiries to the correct tradesman, show leads in the dashboard, send notifications, support quoting workflows, improve lead qualification, and maintain service security."
+            title="Accounts"
+            text="Tradesmen create an account using a business name, email address, and password. You are responsible for keeping your login credentials secure and for any activity that occurs under your account. Notify us if you believe your account has been compromised."
           />
           <Section
-            title="Who receives enquiry data"
-            text="Customer enquiry data is shared with the relevant tradesman connected to the enquiry link used by the customer. TradeMate acts as the platform facilitating that transfer."
+            title="Subscription and billing"
+            text="Access to the tradesman dashboard requires an active subscription. Subscriptions are processed by Stripe and renew on the cadence shown at checkout. You can cancel at any time; access continues until the end of the current billing period."
           />
           <Section
-            title="Retention"
-            text="We retain account and enquiry data for as long as necessary to operate the service, comply with legal obligations, resolve disputes, and maintain business records."
+            title="Acceptable use"
+            text="Don't use the service to send unlawful, harmful, or abusive content; don't attempt to circumvent security controls, scrape data outside what your account is entitled to, or interfere with other users' access. We may suspend or close accounts that breach these rules."
           />
           <Section
-            title="Security"
-            text="We take reasonable technical and organisational measures to protect account and lead data, including authentication controls, database-backed storage, and request protections."
+            title="Customer enquiry data"
+            text="When a customer submits an enquiry through your link, the captured details (name, contact info, project info) are made available to you in your dashboard. You're responsible for handling that information lawfully and in line with the privacy expectations communicated to your customers."
           />
           <Section
-            title="Your rights"
-            text="Depending on your location, you may have rights to request access, correction, deletion, or restriction of your personal data. Privacy-related requests can be directed to the contact address provided by the business using TradeMate, or to the TradeMate operator where applicable."
+            title="Service availability"
+            text="We aim to keep the service running reliably but don't guarantee uninterrupted availability. The service is provided on an as-is basis, and we may change features, pricing, or these terms with reasonable notice."
+          />
+          <Section
+            title="Liability"
+            text="To the maximum extent permitted by law, TradeMate is not liable for indirect or consequential losses arising from use of the service. Our total liability for any direct losses is limited to the amount you paid in subscription fees in the 12 months preceding the claim."
+          />
+          <Section
+            title="Termination"
+            text="You can close your account at any time from the dashboard or by contacting support. We may suspend or terminate accounts for breach of these terms; we'll typically give notice unless an immediate action is required to protect the service or other users."
+          />
+          <Section
+            title="Governing law"
+            text="These terms are governed by the laws of England and Wales. Disputes are subject to the exclusive jurisdiction of the courts of England and Wales unless local consumer protection law requires otherwise."
           />
           <Section
             title="Contact"
-            text="Before launch, replace this section with your real company name, registered address, and privacy contact email."
+            text="Before launch, replace this section with your real company name, registered address, and a contact email for terms-related queries."
           />
         </LegalCard>
 
-        <LegalFooter />
+        <LegalFooter exclude="terms" />
       </div>
     </main>
   );
@@ -62,21 +73,15 @@ function LegalCard({
 }: {
   title: string;
   intro: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div
-      style={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 20,
-        padding: 28,
-        boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-      }}
-    >
-      <h1 style={{ marginTop: 0, fontSize: 34 }}>{title}</h1>
-      <p style={{ color: "#4b5563", lineHeight: 1.7, fontSize: 16 }}>{intro}</p>
-      <div style={{ display: "grid", gap: 18 }}>{children}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+        {title}
+      </h1>
+      <p className="mt-3 text-base leading-7 text-slate-600">{intro}</p>
+      <div className="mt-8 grid gap-6">{children}</div>
     </div>
   );
 }
@@ -84,39 +89,40 @@ function LegalCard({
 function Section({ title, text }: { title: string; text: string }) {
   return (
     <section>
-      <h2 style={{ marginBottom: 8, fontSize: 20 }}>{title}</h2>
-      <p style={{ margin: 0, color: "#4b5563", lineHeight: 1.7 }}>{text}</p>
+      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+      <p className="mt-2 text-sm leading-7 text-slate-600">{text}</p>
     </section>
   );
 }
 
-function LegalFooter() {
+function LegalFooter({
+  exclude,
+}: {
+  exclude?: "privacy" | "terms" | "cookies";
+}) {
+  const links = [
+    { href: "/privacy", label: "Privacy", key: "privacy" as const },
+    { href: "/terms", label: "Terms", key: "terms" as const },
+    { href: "/cookies", label: "Cookies", key: "cookies" as const },
+  ].filter((link) => link.key !== exclude);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 16,
-        flexWrap: "wrap",
-        marginTop: 18,
-        color: "#6b7280",
-        fontSize: 14,
-      }}
-    >
-      <Link href="/terms" style={footerLinkStyle}>
-        Terms
-      </Link>
-      <Link href="/cookies" style={footerLinkStyle}>
-        Cookies
-      </Link>
-      <Link href="/" style={footerLinkStyle}>
+    <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+      {links.map((link) => (
+        <Link
+          key={link.key}
+          href={link.href}
+          className="font-semibold transition hover:text-blue-600"
+        >
+          {link.label}
+        </Link>
+      ))}
+      <Link
+        href="/"
+        className="font-semibold transition hover:text-blue-600"
+      >
         Back home
       </Link>
     </div>
   );
 }
-
-const footerLinkStyle: React.CSSProperties = {
-  textDecoration: "none",
-  color: "#4b5563",
-  fontWeight: 600,
-};

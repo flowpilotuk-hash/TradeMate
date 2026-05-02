@@ -1,4 +1,5 @@
-import React, { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import AppHeader from "../components/AppHeader";
 import { API_BASE } from "../lib/config";
@@ -218,183 +219,116 @@ export default function SignupPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        paddingBottom: 40,
-        color: "#111827",
-      }}
-    >
+    <main className="min-h-screen bg-white text-slate-900">
       <AppHeader currentPath="/signup" />
 
-      <div
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "28px 24px 0 24px",
-        }}
-      >
-        <div style={{ marginBottom: 24 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#6b7280",
-              marginBottom: 8,
-            }}
-          >
-            TradeMate
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-gradient-to-b from-blue-50 via-slate-50 to-white" />
+
+        <div className="mx-auto max-w-md px-6 py-12 sm:py-16">
+          <div className="text-center">
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+              TradeMate
+            </span>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Create your tradesman profile
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Set up your business, then continue to secure checkout to activate your account.
+            </p>
           </div>
-          <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.1 }}>
-            Create your tradesman profile
-          </h1>
-          <p style={{ marginTop: 10, color: "#6b7280", fontSize: 16 }}>
-            Set up your business, then continue to secure checkout to activate your account.
-          </p>
-        </div>
 
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 20,
-            padding: 24,
-            boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-          }}
-        >
-          {checkingSession ? (
-            <div
-              style={{
-                padding: 14,
-                borderRadius: 12,
-                background: "#f9fafb",
-                color: "#6b7280",
-                border: "1px solid #e5e7eb",
-              }}
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            {checkingSession ? (
+              <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Checking your session…
+              </div>
+            ) : (
+              <>
+                {error ? (
+                  <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-700 whitespace-pre-wrap break-words">
+                    {error}
+                  </div>
+                ) : null}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div>
+                    <label
+                      htmlFor="signup-business-name"
+                      className="block text-sm font-semibold text-slate-900"
+                    >
+                      Business name
+                    </label>
+                    <input
+                      id="signup-business-name"
+                      value={businessName}
+                      onChange={(event) => setBusinessName(event.target.value)}
+                      placeholder="Leeds Kitchen Co"
+                      required
+                      className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="signup-email"
+                      className="block text-sm font-semibold text-slate-900"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="signup-email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="owner@yourbusiness.co.uk"
+                      required
+                      className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="signup-password"
+                      className="block text-sm font-semibold text-slate-900"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="signup-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="At least 8 characters"
+                      required
+                      minLength={8}
+                      className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? "Continuing to checkout..." : "Create account and continue"}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+
+          <p className="mt-6 text-center text-sm text-slate-600">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-semibold text-blue-600 hover:text-blue-700"
             >
-              Checking your session…
-            </div>
-          ) : (
-            <>
-              {error ? (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: 14,
-                    borderRadius: 12,
-                    background: "#fef2f2",
-                    color: "#991b1b",
-                    border: "1px solid #fecaca",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {error}
-                </div>
-              ) : null}
-
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  display: "grid",
-                  gap: 16,
-                }}
-              >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 8,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Business name
-                  </label>
-                  <input
-                    value={businessName}
-                    onChange={(event) => setBusinessName(event.target.value)}
-                    placeholder="Leeds Kitchen Co"
-                    required
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 8,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="owner@yourbusiness.co.uk"
-                    required
-                    style={inputStyle}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 8,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Create a password"
-                    required
-                    minLength={8}
-                    style={inputStyle}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    border: "1px solid #111827",
-                    background: "#111827",
-                    color: "#ffffff",
-                    borderRadius: 12,
-                    padding: "12px 16px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    width: "fit-content",
-                    opacity: loading ? 0.7 : 1,
-                  }}
-                >
-                  {loading ? "Continuing to checkout..." : "Create account and continue"}
-                </button>
-              </form>
-            </>
-          )}
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #d1d5db",
-  borderRadius: 12,
-  padding: "12px 14px",
-  fontSize: 15,
-  outline: "none",
-};

@@ -1,20 +1,13 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import AppHeader from "../components/AppHeader";
 
 export default function PrivacyPage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        color: "#111827",
-        paddingBottom: 40,
-      }}
-    >
+    <main className="min-h-screen bg-white text-slate-900">
       <AppHeader currentPath="/privacy" />
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px 0 24px" }}>
+      <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16">
         <LegalCard
           title="Privacy Policy"
           intro="This policy explains how TradeMate collects, uses, and stores personal information."
@@ -49,7 +42,7 @@ export default function PrivacyPage() {
           />
         </LegalCard>
 
-        <LegalFooter />
+        <LegalFooter exclude="privacy" />
       </div>
     </main>
   );
@@ -62,21 +55,15 @@ function LegalCard({
 }: {
   title: string;
   intro: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div
-      style={{
-        background: "#ffffff",
-        border: "1px solid #e5e7eb",
-        borderRadius: 20,
-        padding: 28,
-        boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-      }}
-    >
-      <h1 style={{ marginTop: 0, fontSize: 34 }}>{title}</h1>
-      <p style={{ color: "#4b5563", lineHeight: 1.7, fontSize: 16 }}>{intro}</p>
-      <div style={{ display: "grid", gap: 18 }}>{children}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+        {title}
+      </h1>
+      <p className="mt-3 text-base leading-7 text-slate-600">{intro}</p>
+      <div className="mt-8 grid gap-6">{children}</div>
     </div>
   );
 }
@@ -84,39 +71,40 @@ function LegalCard({
 function Section({ title, text }: { title: string; text: string }) {
   return (
     <section>
-      <h2 style={{ marginBottom: 8, fontSize: 20 }}>{title}</h2>
-      <p style={{ margin: 0, color: "#4b5563", lineHeight: 1.7 }}>{text}</p>
+      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+      <p className="mt-2 text-sm leading-7 text-slate-600">{text}</p>
     </section>
   );
 }
 
-function LegalFooter() {
+function LegalFooter({
+  exclude,
+}: {
+  exclude?: "privacy" | "terms" | "cookies";
+}) {
+  const links = [
+    { href: "/privacy", label: "Privacy", key: "privacy" as const },
+    { href: "/terms", label: "Terms", key: "terms" as const },
+    { href: "/cookies", label: "Cookies", key: "cookies" as const },
+  ].filter((link) => link.key !== exclude);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 16,
-        flexWrap: "wrap",
-        marginTop: 18,
-        color: "#6b7280",
-        fontSize: 14,
-      }}
-    >
-      <Link href="/terms" style={footerLinkStyle}>
-        Terms
-      </Link>
-      <Link href="/cookies" style={footerLinkStyle}>
-        Cookies
-      </Link>
-      <Link href="/" style={footerLinkStyle}>
+    <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+      {links.map((link) => (
+        <Link
+          key={link.key}
+          href={link.href}
+          className="font-semibold transition hover:text-blue-600"
+        >
+          {link.label}
+        </Link>
+      ))}
+      <Link
+        href="/"
+        className="font-semibold transition hover:text-blue-600"
+      >
         Back home
       </Link>
     </div>
   );
 }
-
-const footerLinkStyle: React.CSSProperties = {
-  textDecoration: "none",
-  color: "#4b5563",
-  fontWeight: 600,
-};

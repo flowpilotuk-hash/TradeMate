@@ -42,36 +42,32 @@ export default function LeadsLegacyRedirectPage() {
   }, [router]);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)",
-        fontFamily: "Inter, Arial, sans-serif",
-        color: "#111827",
-        paddingBottom: 40,
-      }}
-    >
+    <main className="min-h-screen bg-white text-slate-900">
       <AppHeader />
 
-      <div
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "28px 24px 0 24px",
-        }}
-      >
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: 20,
-            padding: 28,
-            boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
-          }}
-        >
-          <h1 style={{ marginTop: 0, fontSize: 30 }}>Redirecting…</h1>
-          <p style={{ margin: 0, color: "#6b7280", fontSize: 16, lineHeight: 1.6 }}>
-            TradeMate now uses your protected dashboard instead of the old leads page.
+      <div className="mx-auto max-w-md px-6 py-16 sm:py-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 animate-spin"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <path d="M21 4v6h-6" />
+            </svg>
+          </div>
+          <h1 className="mt-4 text-xl font-semibold tracking-tight text-slate-900">
+            Redirecting…
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            TradeMate now uses your protected dashboard instead of the old leads
+            page.
           </p>
         </div>
       </div>
